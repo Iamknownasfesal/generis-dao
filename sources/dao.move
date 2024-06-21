@@ -31,8 +31,6 @@ module generis_dao::dao {
         name: String,
         /// The `sui::object::ID` of the {Proposal}.
         proposal_id: ID,
-        /// Was the {VoteType} approved on the {Proposal}.
-        approved: bool,
     }
 
     public struct PreProposal has key, store {
@@ -69,6 +67,8 @@ module generis_dao::dao {
         pre_proposal: PreProposal,
         /// End time of the proposal
         ended_at: u64,
+        /// Approved {VoteType}
+        approved_vote_type: VoteType,
     }
 
     public struct ProposalRegistry has key, store {
@@ -257,7 +257,6 @@ module generis_dao::dao {
                 id: object::new(ctx),
                 name: vote_types.pop_back(),
                 proposal_id,
-                approved: false,
             };
 
             let vote_type_id = object::id(&vote_type);
