@@ -6,7 +6,7 @@ module generis_dao::dao_admin {
     }
 
     public fun new_from_another_admin(_: &DaoAdmin, ctx: &mut TxContext): DaoAdmin {
-        DaoAdmin {id: object::new(ctx)}
+        new(ctx)
     }
 
     public fun burn(admin: DaoAdmin) {
