@@ -77,7 +77,7 @@ module generis_dao::dao {
         completed_proposals: ObjectBag,
         /// Active {Proposal}s
         active_proposals: ObjectBag,
-        /// PreProposals
+        /// Pre {Proposal}s
         pre_proposals: ObjectBag,
     }
 
