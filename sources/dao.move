@@ -226,6 +226,7 @@ module generis_dao::dao {
         end_time: u64,
         ctx: &mut TxContext
     ) {
+        assert!(registry.pre_proposals.contains(pre_proposal_id), EProposalDoesNotExist);
         let pre_proposal = registry.pre_proposals.remove(pre_proposal_id);
 
         let proposal = approve_pre_proposal_<RewardCoin, VoteCoin>(
