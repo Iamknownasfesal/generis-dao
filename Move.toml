@@ -24,6 +24,7 @@ GenerisCoin = { local = "../generis-coin" }
 generis_dao = "0x0"
 std = "0x1"
 sui = "0x2"
+dao = "0x666"
 
 # Named addresses will be accessible in Move as `@name`. They're also exported:
 # for example, `std = "0x1"` is exported by the Standard Library.
