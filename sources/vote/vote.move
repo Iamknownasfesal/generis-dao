@@ -34,6 +34,10 @@ module generis_dao::vote {
         (balance, proposal_id, vote_type_id)
     }
 
+    public fun mut_balance<VoteCoin>(vote: &mut Vote<VoteCoin>): &mut Balance<VoteCoin> {
+        &mut vote.balance
+    }
+
     // === Public-View Functions ===
 
     public fun value<VoteCoin>(vote: &Vote<VoteCoin>): u64 {
@@ -50,9 +54,5 @@ module generis_dao::vote {
 
     public fun balance<VoteCoin>(vote: &Vote<VoteCoin>): &Balance<VoteCoin> {
         &vote.balance
-    }
-
-    public fun mut_balance<VoteCoin>(vote: &mut Vote<VoteCoin>): &mut Balance<VoteCoin> {
-        &mut vote.balance
     }
 }

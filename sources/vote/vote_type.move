@@ -26,11 +26,11 @@ module generis_dao::vote_type {
         }
     }
 
-    // === Public-View Functions ===
-
     public fun add_vote_value(self: &mut VoteType, value: u64) {
         self.total_vote_value = self.total_vote_value + value;
     }
+
+    // === Public-View Functions ===
 
     public fun name(self: &VoteType): String {
         self.name
