@@ -1,20 +1,21 @@
 module generis_dao::dao {
     // === Imports ===
-    
+
     use generis_dao::reward_pool::RewardPool;
     use generis_dao::dao_admin::{Self, DaoAdmin};
     use generis_dao::config::{Self, ProposalConfig};
     use generis_dao::pre_proposal::{Self, PreProposal};
     use generis_dao::proposal::{Self, Proposal};
+    use generis_dao::completed_proposal::{Self, CompletedProposal};
     use generis_dao::vote::{Self, Vote};
     use generis_dao::vote_type::{VoteType};
-    use generis_dao::completed_proposal::{Self};
     use generis::generis::GENERIS;
     use sui::object_bag::{Self, ObjectBag};
     use sui::coin::{Self, Coin};
     use sui::clock::Clock;
     use sui::event::emit;
     use std::string::String;
+    use std::debug;
 
     // === Errors ===
 
@@ -38,6 +39,8 @@ module generis_dao::dao {
     const ENotEnoughGenerisToCreateProposal: u64 = 8;
     /// There is still rewards in the reward pool.
     const ECannotDeleteProposalWithRewards: u64 = 9;
+    /// At least two vote types are required.
+    const EAtLeastTwoVoteTypesAreRequired: u64 = 10;
 
     // === Constants ===
 
@@ -110,6 +113,7 @@ module generis_dao::dao {
         ctx: &mut TxContext
     ): ID {
         assert!(generis_in.value() >= config.fee(), ENotEnoughGenerisToCreateProposal);
+        assert!(vote_types.length() >= 2, EAtLeastTwoVoteTypesAreRequired);
         transfer::public_transfer(
             generis_in,
             config.receiver()
@@ -231,7 +235,7 @@ module generis_dao::dao {
         vote_type_id: ID,
         vote_coin: Coin<VoteCoin>,
         ctx: &mut TxContext
-    ) {
+    ): ID {
         assert!(registry.active_proposals.contains(proposal_id), EProposalDoesNotExist);
         let value = vote_coin.value();
         assert!(value > 0, ECannotVoteWithZeroCoinValue);
@@ -263,6 +267,8 @@ module generis_dao::dao {
 
         let vote_type: &mut VoteType = proposal.mut_pre_proposal().mut_vote_types().borrow_mut(vote_type_id);
         vote_type.add_vote_value(value);
+
+        object::id(proposal.votes().borrow(ctx.sender()))
     }
 
     public fun complete<RewardCoin, VoteCoin>(
@@ -337,7 +343,7 @@ module generis_dao::dao {
     ) {
         let reward_pool: RewardPool<RewardCoin> = proposal.mut_reward_pool().extract();
         let total_vote_value = proposal.total_vote_value() as u128;
-        let mut total_reward = reward_pool.value() as u128;
+        let total_reward = reward_pool.value() as u128;
         let mut reward_coins = reward_pool.destroy(ctx);
 
         while (proposal.votes().length() > 0) {
@@ -352,13 +358,26 @@ module generis_dao::dao {
             );
 
             transfer::public_transfer(coin::from_balance(vote_balance, ctx), addr);
-
-            total_reward = total_reward - reward;
         };
 
+        debug::print(&reward_coins.value());
         // This will return anways if the total_reward is not zero, so if any math error happens, the reward will saved.
         assert!(reward_coins.value() == 0, ECannotDeleteProposalWithRewards);
         reward_coins.destroy_zero();
+    }
+
+    // === Public-View Functions ===
+
+    public fun get_pre_proposal(registry: &ProposalRegistry, pre_proposal_id: ID): &PreProposal {
+        registry.pre_proposals.borrow(pre_proposal_id)
+    }
+
+    public fun get_proposal<RewardCoin, VoteCoin>(registry: &ProposalRegistry, proposal_id: ID): &Proposal<RewardCoin, VoteCoin> {
+        registry.active_proposals.borrow(proposal_id)
+    }
+
+    public fun get_completed_proposal(registry: &ProposalRegistry, completed_proposal_id: ID): &CompletedProposal {
+        registry.completed_proposals.borrow(completed_proposal_id)
     }
 
     // === Test Functions ===
