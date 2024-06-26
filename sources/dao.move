@@ -15,7 +15,6 @@ module generis_dao::dao {
     use sui::clock::Clock;
     use sui::event::emit;
     use std::string::String;
-    use std::debug;
 
     // === Errors ===
 
@@ -28,9 +27,9 @@ module generis_dao::dao {
     /// The proposal does not exist.
     const EProposalDoesNotExist: u64 = 3;
     /// {VoteCoinype} does not exist.
-    const EVoteCoinypeDoesNotExist: u64 = 4;
+    const EVoteTypeDoesNotExist: u64 = 4;
     /// Already voted, cannot vote different {VoteCoinype}.
-    const ECannotVoteDifferentVoteCoinype: u64 = 5;
+    const ECannotVoteDifferentVoteCoinType: u64 = 5;
     /// The proposal cannot yet be completed.
     const EProposalCannotBeCompletedYet: u64 = 6;
     /// {VoteType} cannot be {None}
@@ -244,12 +243,12 @@ module generis_dao::dao {
 
         assert!(clock.timestamp_ms() >= proposal.start_time(), ETooSoonToVote);
         assert!(clock.timestamp_ms() <= proposal.end_time(), ETooLateToVote);
-        assert!(proposal.pre_proposal().vote_types().contains(vote_type_id), EVoteCoinypeDoesNotExist);
+        assert!(proposal.pre_proposal().vote_types().contains(vote_type_id), EVoteTypeDoesNotExist);
 
         if (proposal.votes().contains(ctx.sender())) {
             let vote: &mut Vote<VoteCoin> = proposal.mut_votes().borrow_mut(ctx.sender());
 
-            assert!(vote.vote_type_id() == vote_type_id, ECannotVoteDifferentVoteCoinype);
+            assert!(vote.vote_type_id() == vote_type_id, ECannotVoteDifferentVoteCoinType);
 
             vote.mut_balance().join(vote_coin.into_balance());
         } else {
@@ -360,7 +359,6 @@ module generis_dao::dao {
             transfer::public_transfer(coin::from_balance(vote_balance, ctx), addr);
         };
 
-        debug::print(&reward_coins.value());
         // This will return anways if the total_reward is not zero, so if any math error happens, the reward will saved.
         assert!(reward_coins.value() == 0, ECannotDeleteProposalWithRewards);
         reward_coins.destroy_zero();

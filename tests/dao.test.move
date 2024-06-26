@@ -266,6 +266,374 @@ module generis_dao::dao_tests {
         test::end(scenario);
     }
 
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::ECannotVoteWithZeroCoinValue)]
+    fun test_cannot_vote_with_zero_coin_value() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+        let (proposal_id, c) = setup_with_approved_proposal(test);
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let vote_types = proposal.pre_proposal().vote_types();
+            let vote_type_id = *vote_types.front().borrow();
+
+            let vote_coin = mint_for_testing<GENERIS>(0, ctx(test));
+
+            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
+
+            test::return_shared(registry);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::ETooLateToVote)]
+    fun test_too_late_to_vote() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+
+        clock::increment_for_testing(&mut c, 101);
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let vote_types = proposal.pre_proposal().vote_types();
+            let vote_type_id = *vote_types.front().borrow();
+
+            let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
+
+            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
+
+            test::return_shared(registry);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::ETooSoonToVote)]
+    fun test_too_soon_to_vote() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+
+        clock::increment_for_testing(&mut c, 0);
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let vote_types = proposal.pre_proposal().vote_types();
+            let vote_type_id = *vote_types.front().borrow();
+
+            let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
+
+            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
+
+            test::return_shared(registry);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::EProposalDoesNotExist)]
+    fun test_vote_on_non_existent_proposal() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+
+        set_up(test);
+        
+        let c = clock::create_for_testing(ctx(test));
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
+
+            dao::vote<S_ETH, GENERIS>(&mut registry, &c, object::id(&c), object::id(&c), vote_coin, ctx(test));
+
+            test::return_shared(registry);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::EVoteTypeDoesNotExist)]
+    fun test_vote_with_non_existent_vote_coin_type() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+
+        clock::increment_for_testing(&mut c, 1);
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+
+            let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
+
+            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, object::id(&c), vote_coin, ctx(test));
+
+            test::return_shared(registry);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::ECannotVoteDifferentVoteCoinType)]
+    fun test_vote_with_different_vote_coin_type() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+
+        clock::increment_for_testing(&mut c, 1);
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
+            let vote_types = proposal.pre_proposal().vote_types();
+            let vote_type_id = *vote_types.front().borrow();
+            let vote_type_id_2 = *vote_types.back().borrow();
+
+            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
+            
+            let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
+
+            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id_2, vote_coin, ctx(test));
+
+            test::return_shared(registry);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::EProposalCannotBeCompletedYet)]
+    fun test_complete_proposal_too_early() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+        let (proposal_id, c) = setup_with_approved_proposal(test);
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let admin = test::take_from_sender<DaoAdmin>(test);
+
+            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal_id, ctx(test));
+
+            test::return_shared(registry);
+            test::return_to_sender(test, admin);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::EVoteTypeCannotBeNone)]
+    fun test_vote_with_none_vote_type() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+
+        clock::increment_for_testing(&mut c, 101);
+
+        next_tx(test, alice);
+        {
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let admin = test::take_from_sender<DaoAdmin>(test);
+
+            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal_id, ctx(test));
+
+            test::return_shared(registry);
+            test::return_to_sender(test, admin);
+        };
+
+        clock::destroy_for_testing(c);
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::ENotEnoughGenerisToCreateProposal)]
+    fun test_not_enough_generis_to_create_proposal() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+
+        set_up(test);
+
+        next_tx(test, alice);
+        {
+            let config = test::take_shared<ProposalConfig>(test);
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+
+            let mut vote_types = vector::empty();
+
+            vote_types.push_back(string::utf8(b"yes"));
+            vote_types.push_back(string::utf8(b"no"));
+
+            dao::create_pre_proposal(
+                &config,
+                &mut registry,
+                mint_for_testing(0, ctx(test)),
+                string::utf8(b"test"),
+                string::utf8(b"this is a test"),
+                vote_types,
+                ctx(test)
+            );
+
+            test::return_shared(config);
+            test::return_shared(registry);
+        };
+
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::EAtLeastTwoVoteTypesAreRequired)]
+    fun test_at_least_two_vote_types_are_required() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+
+        set_up(test);
+
+        next_tx(test, alice);
+        {
+            let config = test::take_shared<ProposalConfig>(test);
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+
+            let mut vote_types = vector::empty();
+
+            vote_types.push_back(string::utf8(b"yes"));
+
+            dao::create_pre_proposal(
+                &config,
+                &mut registry,
+                mint_for_testing(100_000_000_000, ctx(test)),
+                string::utf8(b"test"),
+                string::utf8(b"this is a test"),
+                vote_types,
+                ctx(test)
+            );
+
+            test::return_shared(config);
+            test::return_shared(registry);
+        };
+
+        test::end(scenario);
+    }
+
+    fun setup_with_approved_proposal(test: &mut Scenario): (ID, Clock) {
+        let (alice, _) = people();
+        next_tx(test, alice);
+        {
+            dao::init_for_testing(ctx(test));
+        };
+
+        let mut c = clock::create_for_testing(ctx(test));
+
+        let mut pre_proposal_id_: ID = object::id(&c);
+
+        next_tx(test, alice);
+        {
+            let config = test::take_shared<ProposalConfig>(test);
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+
+            let mut vote_types = vector::empty();
+
+            vote_types.push_back(string::utf8(b"yes"));
+            vote_types.push_back(string::utf8(b"no"));
+
+            let pre_proposal_id = dao::create_pre_proposal(
+                &config,
+                &mut registry,
+                mint_for_testing(100_000_000_000, ctx(test)),
+                string::utf8(b"test"),
+                string::utf8(b"this is a test"),
+                vote_types,
+                ctx(test)
+            );
+
+            pre_proposal_id_ = pre_proposal_id;
+
+            test::return_shared(config);
+            test::return_shared(registry);
+        };
+
+        let mut proposal_id_: ID = object::id(&c);
+
+        next_tx(test, alice);
+        {
+            let config = test::take_shared<ProposalConfig>(test);
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let dao_admin = test::take_from_sender<DaoAdmin>(test);
+
+            let proposal_id = dao::approve_pre_proposal<S_ETH, GENERIS>(
+                &dao_admin,
+                &mut registry,
+                pre_proposal_id_,
+                mint_for_testing(100_000_000_000, ctx(test)),
+                1,
+                100,
+                ctx(test)
+            );
+
+            test::return_shared(config);
+            test::return_shared(registry);
+            test::return_to_sender(test, dao_admin);
+            proposal_id_ = proposal_id;
+        };
+
+
+        (proposal_id_, c)
+    }
+
     fun vote_easy(c: &Clock, registry: &mut ProposalRegistry, proposal_id: ID, vote_type_id: ID, amount: u64, ctx: &mut TxContext) {
         let vote_coin = mint_for_testing<GENERIS>(amount, ctx);
 
