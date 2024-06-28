@@ -4,15 +4,17 @@ module generis_dao::dao {
     use generis_dao::config::{Self, ProposalConfig};
     use generis_dao::pre_proposal::{Self, PreProposal};
     use generis_dao::proposal::{Self, Proposal};
-    use generis_dao::completed_proposal;
+    use generis_dao::completed_proposal::{Self, CompletedProposal};
     use generis_dao::proposal_registry::{Self, ProposalRegistry};
     use generis_dao::vote::{Self, Vote};
     use generis_dao::vote_type::{VoteType};
     use generis::generis::GENERIS;
     use sui::coin::{Self, Coin};
     use sui::clock::Clock;
+    use sui::package;
+    use sui::display;
     use sui::event::emit;
-    use std::string::String;
+    use std::string::{String, utf8};
 
     // === Errors ===
 
@@ -51,6 +53,12 @@ module generis_dao::dao {
     const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
     const DEFAULT_PRE_PROPOSAL_MIN: u64 = 1_000_000_000_000;
 
+    // === Structs ===
+
+    /// == OTW ==
+
+    public struct DAO has drop {}
+
     // === Events ===
 
     public struct PreProposalCreated has copy, drop {
@@ -74,7 +82,8 @@ module generis_dao::dao {
     // === Init ===
 
     #[lint_allow(share_owned)]
-    fun init(ctx: &mut TxContext) {
+    fun init(otw: DAO, ctx: &mut TxContext) {
+        let publisher = package::claim(otw, ctx);
         transfer::public_share_object(proposal_registry::new(ctx));
 
         transfer::public_transfer(
@@ -82,10 +91,31 @@ module generis_dao::dao {
             ctx.sender(),
         );
 
+        let mut display = display::new<PreProposal>(&publisher, ctx);
+        display.add(utf8(b"name"), utf8(b"Sui Generis Pre-Proposal: {name}"));
+        display.add(
+            utf8(b"image_url"),
+            utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
+        );
+        display.update_version();
+
+        transfer::public_transfer(display, ctx.sender());
+
+        let mut display = display::new<CompletedProposal>(&publisher, ctx);
+        display.add(utf8(b"name"), utf8(b"Sui Generis Completed Proposal: {name}"));
+        display.add(
+            utf8(b"image_url"),
+            utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
+        );
+        display.update_version();
+
+        transfer::public_transfer(display, ctx.sender());
+
         transfer::public_share_object(config::new(
             DEFAULT_PRE_PROPOSAL_FEES,
             @dao,
             DEFAULT_PRE_PROPOSAL_MIN,
+            publisher,
             ctx,
         ))
     }
@@ -141,6 +171,7 @@ module generis_dao::dao {
     #[lint_allow(share_owned)]
     public entry fun create_proposal<RewardCoin, VoteCoin>(
         _: &DaoAdmin,
+        config: &mut ProposalConfig,
         registry: &mut ProposalRegistry,
         name: String,
         description: String,
@@ -165,6 +196,7 @@ module generis_dao::dao {
         });
 
         let proposal = proposal::new<RewardCoin, VoteCoin>(
+            config,
             pre_proposal,
             reward_coin,
             start_time,
@@ -180,14 +212,15 @@ module generis_dao::dao {
             pre_proposal_id: object::id(proposal.pre_proposal()),
         });
 
+        config.proposal_created();
         registry.add_active_proposal(proposal_id);
-
         transfer::public_share_object(proposal);
     }
 
     #[lint_allow(share_owned)]
     public entry fun approve_pre_proposal<RewardCoin, VoteCoin>(
         _: &DaoAdmin,
+        config: &mut ProposalConfig,
         registry: &mut ProposalRegistry,
         pre_proposal: PreProposal,
         reward_coin: Coin<RewardCoin>,
@@ -198,7 +231,8 @@ module generis_dao::dao {
         registry.remove_pre_proposal(object::id(&pre_proposal));
 
         let proposal = proposal::new<RewardCoin, VoteCoin>(
-            pre_proposal,
+            config,
+            pre_proposal.destruct_and_new(ctx),
             reward_coin,
             start_time,
             end_time,
@@ -213,6 +247,7 @@ module generis_dao::dao {
             pre_proposal_id: object::id(proposal.pre_proposal()),
         });
 
+        config.proposal_created();
         transfer::public_share_object(proposal);
         registry.add_active_proposal(proposal_id);
     }
@@ -293,12 +328,20 @@ module generis_dao::dao {
         let mut proposal = proposal;
         share_incentive_pool_rewards(&mut proposal, ctx);
 
-        let (pre_proposal, accepted_by, reward_pool, votes, total_vote_value) = proposal.destroy();
+        let (
+            number,
+            pre_proposal,
+            accepted_by,
+            reward_pool,
+            votes,
+            total_vote_value
+        ) = proposal.destroy();
 
         let mut pre_proposal = pre_proposal;
         let approved_vote_type: VoteType = pre_proposal.mut_vote_types().remove(approved_vote_type);
 
         let completed_proposal = completed_proposal::new(
+            number,
             pre_proposal,
             clock.timestamp_ms(),
             approved_vote_type,
@@ -361,6 +404,6 @@ module generis_dao::dao {
 
     #[test_only]
     public fun init_for_testing(ctx: &mut TxContext) {
-        init(ctx);
+        init(DAO {}, ctx);
     }
 }

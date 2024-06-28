@@ -1,5 +1,6 @@
 module generis_dao::config {
     use generis_dao::dao_admin::DaoAdmin;
+    use sui::package::Publisher;
 
     public struct ProposalConfig has key, store {
         id: UID,
@@ -9,6 +10,10 @@ module generis_dao::config {
         receiver: address,
         /// Minimum amount of Generis that a user needs to pay to create a {PreProposal}
         min_generis_to_create_proposal: u64,
+        /// The amount of proposals got created
+        proposal_index: u64,
+        /// Publisher object for adding display
+        publisher: Publisher,
     }
 
     // === Public-Mutative Functions ===
@@ -17,9 +22,21 @@ module generis_dao::config {
         fee: u64,
         receiver: address,
         min_generis_to_create_proposal: u64,
+        publisher: Publisher,
         ctx: &mut TxContext,
     ): ProposalConfig {
-        ProposalConfig { id: object::new(ctx), fee, receiver, min_generis_to_create_proposal }
+        ProposalConfig {
+            id: object::new(ctx),
+            fee,
+            receiver,
+            min_generis_to_create_proposal,
+            proposal_index: 1,
+            publisher,
+        }
+    }
+
+    public(package) fun proposal_created(proposal_config: &mut ProposalConfig) {
+        proposal_config.proposal_index = proposal_config.proposal_index + 1;
     }
 
     public entry fun set_fee(
@@ -55,7 +72,16 @@ module generis_dao::config {
     public fun receiver(proposal_config: &ProposalConfig): address {
         proposal_config.receiver
     }
+
     public fun min_generis_to_create_proposal(proposal_config: &ProposalConfig): u64 {
         proposal_config.min_generis_to_create_proposal
+    }
+
+    public fun proposal_index(proposal_config: &ProposalConfig): u64 {
+        proposal_config.proposal_index
+    }
+
+    public(package) fun publisher(proposal_config: &ProposalConfig): &Publisher {
+        &proposal_config.publisher
     }
 }

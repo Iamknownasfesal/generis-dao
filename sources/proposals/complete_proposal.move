@@ -6,6 +6,8 @@ module generis_dao::completed_proposal {
 
     public struct CompletedProposal has key, store {
         id: UID,
+        /// The proposal number
+        number: u64,
         /// The {PreProposal} that the {Proposal} is based on.
         pre_proposal: PreProposal,
         /// End time of the proposal
@@ -21,6 +23,7 @@ module generis_dao::completed_proposal {
     // === Public-Mutative Functions ===
 
     public(package) fun new(
+        number: u64,
         pre_proposal: PreProposal,
         ended_at: u64,
         approved_vote_type: VoteType,
@@ -30,6 +33,7 @@ module generis_dao::completed_proposal {
     ): CompletedProposal {
         CompletedProposal {
             id: object::new(ctx),
+            number,
             pre_proposal,
             ended_at,
             approved_vote_type,
@@ -39,6 +43,10 @@ module generis_dao::completed_proposal {
     }
 
     // === Public-View Functions ===
+
+    public fun number(completed_proposal: &CompletedProposal): u64 {
+        completed_proposal.number
+    }
 
     public fun pre_proposal(completed_proposal: &CompletedProposal): &PreProposal {
         &completed_proposal.pre_proposal

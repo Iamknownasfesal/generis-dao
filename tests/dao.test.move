@@ -6,7 +6,7 @@ module generis_dao::dao_tests {
     use sui::clock::{Self, Clock};
     use sui::test_utils::assert_eq;
     use sui::coin::{Coin, mint_for_testing};
-    use sui::test_scenario::{Self as test, Scenario, next_tx, next_epoch, ctx};
+    use sui::test_scenario::{Self as test, Scenario, next_tx, ctx};
 
     use generis_dao::s_eth::S_ETH;
     use generis_dao::test_utils::{people, scenario};
@@ -20,6 +20,7 @@ module generis_dao::dao_tests {
     use generis::generis::GENERIS;
 
     const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
+    const DEFAULT_PRE_PROPOSAL_MIN: u64 = 1_000_000_000_000;
 
     #[test]
     #[lint_allow(share_owned)]
@@ -40,6 +41,7 @@ module generis_dao::dao_tests {
 
             assert_eq(config.fee(), DEFAULT_PRE_PROPOSAL_FEES);
             assert_eq(config.receiver(), @dao);
+            assert_eq(config.min_generis_to_create_proposal(), DEFAULT_PRE_PROPOSAL_MIN);
 
             test::return_shared(config);
         };
@@ -94,12 +96,14 @@ module generis_dao::dao_tests {
         // Approve the pre-proposal and check that the proposal is created correctly
         next_tx(test, alice);
         {
+            let mut config = test::take_shared<ProposalConfig>(test);
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let dao_admin = test::take_from_sender<DaoAdmin>(test);
             let pre_proposal = test::take_shared<PreProposal>(test);
 
             dao::approve_pre_proposal<S_ETH, GENERIS>(
                 &dao_admin,
+                &mut config,
                 &mut registry,
                 pre_proposal,
                 mint_for_testing(100_000_000_000, ctx(test)),
@@ -108,6 +112,7 @@ module generis_dao::dao_tests {
                 ctx(test),
             );
 
+            test::return_shared(config);
             test::return_shared(registry);
             test::return_to_sender(test, dao_admin);
         };
@@ -298,6 +303,7 @@ module generis_dao::dao_tests {
 
             assert_eq(config.fee(), DEFAULT_PRE_PROPOSAL_FEES);
             assert_eq(config.receiver(), @dao);
+            assert_eq(config.min_generis_to_create_proposal(), DEFAULT_PRE_PROPOSAL_MIN);
 
             test::return_shared(config);
         };
@@ -391,13 +397,14 @@ module generis_dao::dao_tests {
 
         next_tx(test, alice);
         {
-            let config = test::take_shared<ProposalConfig>(test);
+            let mut config = test::take_shared<ProposalConfig>(test);
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let dao_admin = test::take_from_sender<DaoAdmin>(test);
             let pre_proposal = test::take_shared<PreProposal>(test);
 
             dao::approve_pre_proposal<S_ETH, GENERIS>(
                 &dao_admin,
+                &mut config,
                 &mut registry,
                 pre_proposal,
                 mint_for_testing(100_000_000_000, ctx(test)),
@@ -444,7 +451,7 @@ module generis_dao::dao_tests {
 
         next_tx(test, alice);
         {
-            let config = test::take_shared<ProposalConfig>(test);
+            let mut config = test::take_shared<ProposalConfig>(test);
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let dao_admin = test::take_from_sender<DaoAdmin>(test);
 
@@ -455,6 +462,7 @@ module generis_dao::dao_tests {
 
             dao::create_proposal<S_ETH, GENERIS>(
                 &dao_admin,
+                &mut config,
                 &mut registry,
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
@@ -846,6 +854,44 @@ module generis_dao::dao_tests {
 
     #[test]
     #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::EUserShouldHaveMoreThanMinimumGeneris)]
+    fun test_user_should_have_more_than_minimum_generis() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+
+        set_up(test);
+
+        next_tx(test, alice);
+        {
+            let config = test::take_shared<ProposalConfig>(test);
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+
+            let mut vote_types = vector::empty();
+
+            vote_types.push_back(string::utf8(b"yes"));
+            vote_types.push_back(string::utf8(b"no"));
+
+            dao::create_pre_proposal(
+                &config,
+                &mut registry,
+                mint_for_testing(100_000_000_001, ctx(test)),
+                string::utf8(b"test"),
+                string::utf8(b"this is a test"),
+                vote_types,
+                ctx(test),
+            );
+
+            test::return_shared(config);
+            test::return_shared(registry);
+        };
+
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
     #[expected_failure(abort_code = dao::EAtLeastTwoVoteTypesAreRequired)]
     fun test_at_least_two_vote_types_are_required() {
         let mut scenario = scenario();
@@ -916,13 +962,14 @@ module generis_dao::dao_tests {
 
         next_tx(test, alice);
         {
-            let config = test::take_shared<ProposalConfig>(test);
+            let mut config = test::take_shared<ProposalConfig>(test);
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let dao_admin = test::take_from_sender<DaoAdmin>(test);
             let pre_proposal = test::take_shared<PreProposal>(test);
 
             dao::approve_pre_proposal<S_ETH, GENERIS>(
                 &dao_admin,
+                &mut config,
                 &mut registry,
                 pre_proposal,
                 mint_for_testing(100_000_000_000, ctx(test)),

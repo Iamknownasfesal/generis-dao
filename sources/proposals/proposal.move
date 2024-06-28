@@ -2,14 +2,19 @@ module generis_dao::proposal {
     use generis_dao::reward_pool::{Self, RewardPool};
     use generis_dao::pre_proposal::{PreProposal};
     use generis_dao::vote::Vote;
+    use generis_dao::config::ProposalConfig;
+    use sui::display::{Self, Display};
     use sui::linked_table::{Self, LinkedTable};
     use sui::coin::Coin;
+    use std::string::utf8;
     use std::type_name::{Self, TypeName};
 
     // === Structs ===
 
     public struct Proposal<phantom RewardCoin, phantom VoteCoin> has key, store {
         id: UID,
+        /// Proposal number
+        number: u64,
         /// Proposal accepted by
         accepted_by: address,
         /// The {PreProposal} that the {Proposal} is based on.
@@ -30,9 +35,15 @@ module generis_dao::proposal {
         vote_coin_type: TypeName,
     }
 
+    public struct DisplayWrapper<phantom RewardCoin, phantom VoteCoin> has key, store {
+        id: UID,
+        display: Display<Proposal<RewardCoin, VoteCoin>>,
+    }
+
     // === Public-Mutative Functions ===
 
     public(package) fun new<RewardCoin, VoteCoin>(
+        config: &ProposalConfig,
         pre_proposal: PreProposal,
         reward_coin: Coin<RewardCoin>,
         start_time: u64,
@@ -46,8 +57,9 @@ module generis_dao::proposal {
             option::none()
         };
 
-        let proposal = Proposal {
+        let proposal = Proposal<RewardCoin, VoteCoin> {
             id: object::new(ctx),
+            number: config.proposal_index(),
             accepted_by: ctx.sender(),
             pre_proposal: pre_proposal,
             reward_pool,
@@ -58,6 +70,17 @@ module generis_dao::proposal {
             reward_coin_type: type_name::get<RewardCoin>(),
             vote_coin_type: type_name::get<VoteCoin>(),
         };
+
+        let mut display = display::new<Proposal<RewardCoin, VoteCoin>>(config.publisher(), ctx);
+        display.add(utf8(b"name"), utf8(b"Sui Generis Proposal: {name}"));
+        display.add(
+            utf8(b"image_url"),
+            utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
+        );
+        display.update_version();
+
+        transfer::public_share_object(DisplayWrapper { id: object::new(ctx), display });
+
         proposal
     }
 
@@ -78,6 +101,7 @@ module generis_dao::proposal {
     public(package) fun destroy<RewardCoin, VoteCoin>(
         proposal: Proposal<RewardCoin, VoteCoin>,
     ): (
+        u64,
         PreProposal,
         address,
         Option<RewardPool<RewardCoin>>,
@@ -86,6 +110,7 @@ module generis_dao::proposal {
     ) {
         let Proposal {
             id,
+            number,
             pre_proposal,
             accepted_by,
             reward_pool,
@@ -100,6 +125,7 @@ module generis_dao::proposal {
         object::delete(id);
 
         return (
+            number,
             pre_proposal,
             accepted_by,
             reward_pool,

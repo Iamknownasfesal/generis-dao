@@ -52,6 +52,16 @@ module generis_dao::pre_proposal {
         pre_proposal
     }
 
+    public(package) fun destruct_and_new(
+        pre_proposal: PreProposal,
+        ctx: &mut TxContext,
+    ): PreProposal {
+        let PreProposal { id, proposer, name, description, vote_types } = pre_proposal;
+        object::delete(id);
+
+        PreProposal { id: object::new(ctx), proposer, name, description, vote_types }
+    }
+
     public(package) fun mut_vote_types(
         pre_proposal: &mut PreProposal,
     ): &mut LinkedTable<ID, VoteType> {
