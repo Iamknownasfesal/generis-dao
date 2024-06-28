@@ -61,7 +61,7 @@ module generis_dao::proposal {
             id: object::new(ctx),
             number: config.proposal_index(),
             accepted_by: ctx.sender(),
-            pre_proposal: pre_proposal,
+            pre_proposal,
             reward_pool,
             start_time,
             end_time,
