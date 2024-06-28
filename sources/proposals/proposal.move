@@ -1,6 +1,4 @@
 module generis_dao::proposal {
-    // === Imports ===
-
     use generis_dao::reward_pool::{Self, RewardPool};
     use generis_dao::pre_proposal::{PreProposal};
     use generis_dao::vote::Vote;
@@ -39,7 +37,7 @@ module generis_dao::proposal {
         reward_coin: Coin<RewardCoin>,
         start_time: u64,
         end_time: u64,
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ): Proposal<RewardCoin, VoteCoin> {
         let reward_pool = if (reward_coin.value() > 0) {
             option::some(reward_pool::new(reward_coin, ctx))
@@ -60,16 +58,44 @@ module generis_dao::proposal {
             reward_coin_type: type_name::get<RewardCoin>(),
             vote_coin_type: type_name::get<VoteCoin>(),
         };
-        
         proposal
     }
 
-    public fun add_vote_value<RewardCoin, VoteCoin>(proposal: &mut Proposal<RewardCoin, VoteCoin>, value: u64) {
+    public(package) fun extend_time<RewardCoin, VoteCoin>(
+        proposal: &mut Proposal<RewardCoin, VoteCoin>,
+        end_time: u64,
+    ) {
+        proposal.end_time = end_time;
+    }
+
+    public(package) fun add_vote_value<RewardCoin, VoteCoin>(
+        proposal: &mut Proposal<RewardCoin, VoteCoin>,
+        value: u64,
+    ) {
         proposal.total_vote_value = proposal.total_vote_value + value;
     }
 
-    public fun destroy<RewardCoin, VoteCoin>(proposal: Proposal<RewardCoin, VoteCoin>): (PreProposal, address, Option<RewardPool<RewardCoin>>, LinkedTable<address, Vote<VoteCoin>>, u64) {
-        let Proposal { id, pre_proposal, accepted_by, reward_pool, start_time: _, end_time: _, votes, total_vote_value, reward_coin_type: _, vote_coin_type: _ } = proposal;
+    public(package) fun destroy<RewardCoin, VoteCoin>(
+        proposal: Proposal<RewardCoin, VoteCoin>,
+    ): (
+        PreProposal,
+        address,
+        Option<RewardPool<RewardCoin>>,
+        LinkedTable<address, Vote<VoteCoin>>,
+        u64,
+    ) {
+        let Proposal {
+            id,
+            pre_proposal,
+            accepted_by,
+            reward_pool,
+            start_time: _,
+            end_time: _,
+            votes,
+            total_vote_value,
+            reward_coin_type: _,
+            vote_coin_type: _,
+        } = proposal;
 
         object::delete(id);
 
@@ -82,25 +108,35 @@ module generis_dao::proposal {
         )
     }
 
-    public fun mut_pre_proposal<RewardCoin, VoteCoin>(proposal: &mut Proposal<RewardCoin, VoteCoin>): &mut PreProposal {
+    public(package) fun mut_pre_proposal<RewardCoin, VoteCoin>(
+        proposal: &mut Proposal<RewardCoin, VoteCoin>,
+    ): &mut PreProposal {
         &mut proposal.pre_proposal
     }
 
-    public fun mut_votes<RewardCoin, VoteCoin>(proposal: &mut Proposal<RewardCoin, VoteCoin>): &mut LinkedTable<address, Vote<VoteCoin>> {
+    public(package) fun mut_votes<RewardCoin, VoteCoin>(
+        proposal: &mut Proposal<RewardCoin, VoteCoin>,
+    ): &mut LinkedTable<address, Vote<VoteCoin>> {
         &mut proposal.votes
     }
 
-    public fun mut_reward_pool<RewardCoin, VoteCoin>(proposal: &mut Proposal<RewardCoin, VoteCoin>): &mut Option<RewardPool<RewardCoin>> {
+    public(package) fun mut_reward_pool<RewardCoin, VoteCoin>(
+        proposal: &mut Proposal<RewardCoin, VoteCoin>,
+    ): &mut Option<RewardPool<RewardCoin>> {
         &mut proposal.reward_pool
     }
 
     // === Public-View Functions ===
 
-    public fun accepted_by<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): address {
+    public fun accepted_by<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): address {
         proposal.accepted_by
     }
 
-    public fun pre_proposal<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): &PreProposal {
+    public fun pre_proposal<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): &PreProposal {
         &proposal.pre_proposal
     }
 
@@ -112,23 +148,33 @@ module generis_dao::proposal {
         proposal.end_time
     }
 
-    public fun total_vote_value<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): u64 {
+    public fun total_vote_value<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): u64 {
         proposal.total_vote_value
     }
 
-    public fun reward_coin_type<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): TypeName {
+    public fun reward_coin_type<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): TypeName {
         proposal.reward_coin_type
     }
 
-    public fun vote_coin_type<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): TypeName {
+    public fun vote_coin_type<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): TypeName {
         proposal.vote_coin_type
     }
 
-    public fun votes<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): &LinkedTable<address, Vote<VoteCoin>> {
+    public fun votes<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): &LinkedTable<address, Vote<VoteCoin>> {
         &proposal.votes
     }
 
-    public fun reward_pool<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): &Option<RewardPool<RewardCoin>> {
+    public fun reward_pool<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): &Option<RewardPool<RewardCoin>> {
         &proposal.reward_pool
     }
 }

@@ -6,13 +6,17 @@ module generis_dao::dao_tests {
     use sui::clock::{Self, Clock};
     use sui::test_utils::assert_eq;
     use sui::coin::{Coin, mint_for_testing};
-    use sui::test_scenario::{Self as test, Scenario, next_tx, ctx};
+    use sui::test_scenario::{Self as test, Scenario, next_tx, next_epoch, ctx};
 
     use generis_dao::s_eth::S_ETH;
     use generis_dao::test_utils::{people, scenario};
-    use generis_dao::dao::{Self, ProposalRegistry};
+    use generis_dao::dao::Self;
     use generis_dao::config::ProposalConfig;
     use generis_dao::dao_admin::DaoAdmin;
+    use generis_dao::pre_proposal::PreProposal;
+    use generis_dao::proposal::Proposal;
+    use generis_dao::completed_proposal::CompletedProposal;
+    use generis_dao::proposal_registry::ProposalRegistry;
     use generis::generis::GENERIS;
 
     const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
@@ -40,8 +44,6 @@ module generis_dao::dao_tests {
             test::return_shared(config);
         };
 
-        let mut pre_proposal_id_: ID = object::id(&c);
-
         // Create a pre-proposal and check that it is created correctly
         next_tx(test, alice);
         {
@@ -53,30 +55,31 @@ module generis_dao::dao_tests {
             vote_types.push_back(string::utf8(b"yes"));
             vote_types.push_back(string::utf8(b"no"));
 
-            let pre_proposal_id = dao::create_pre_proposal(
+            dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(100_000_000_000, ctx(test)),
+                mint_for_testing(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
-                ctx(test)
+                ctx(test),
             );
 
-            let pre_proposal = registry.get_pre_proposal(pre_proposal_id);
+            test::return_shared(config);
+            test::return_shared(registry);
+        };
 
+        next_tx(test, alice);
+        {
+            let pre_proposal = test::take_shared<PreProposal>(test);
             assert_eq(pre_proposal.proposer(), alice);
             assert_eq(pre_proposal.name(), string::utf8(b"test"));
             assert_eq(pre_proposal.description(), string::utf8(b"this is a test"));
             assert_eq(pre_proposal.vote_types().length(), 2);
 
-            pre_proposal_id_ = pre_proposal_id;
-
-            test::return_shared(config);
-            test::return_shared(registry);
+            test::return_shared(pre_proposal);
         };
-        
-        // Check if after the pre-proposal is created, the proposal payment is gotten by the DAO
+
         next_tx(test, alice);
         {
             let config = test::take_shared<ProposalConfig>(test);
@@ -88,28 +91,31 @@ module generis_dao::dao_tests {
             test::return_to_address(@dao, payment);
         };
 
-        let mut proposal_id_: ID = object::id(&c);
-        
         // Approve the pre-proposal and check that the proposal is created correctly
         next_tx(test, alice);
         {
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let dao_admin = test::take_from_sender<DaoAdmin>(test);
+            let pre_proposal = test::take_shared<PreProposal>(test);
 
-            let proposal_id = dao::approve_pre_proposal<S_ETH, GENERIS>(
+            dao::approve_pre_proposal<S_ETH, GENERIS>(
                 &dao_admin,
                 &mut registry,
-                pre_proposal_id_,
+                pre_proposal,
                 mint_for_testing(100_000_000_000, ctx(test)),
                 1,
                 100,
-                ctx(test)
+                ctx(test),
             );
 
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            test::return_shared(registry);
+            test::return_to_sender(test, dao_admin);
+        };
 
+        next_tx(test, alice);
+        {
+            let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             assert_eq(proposal.accepted_by(), alice);
-            assert_eq(object::id(proposal.pre_proposal()), pre_proposal_id_);
             assert_eq(proposal.reward_pool().is_some(), true);
             assert_eq(proposal.start_time(), 1);
             assert_eq(proposal.end_time(), 100);
@@ -118,20 +124,14 @@ module generis_dao::dao_tests {
             assert_eq(proposal.reward_coin_type(), type_name::get<S_ETH>());
             assert_eq(proposal.vote_coin_type(), type_name::get<GENERIS>());
 
-            proposal_id_ = proposal_id;
-
-            test::return_shared(registry);
-            test::return_to_sender(test, dao_admin);
+            test::return_shared(proposal);
         };
-
         clock::increment_for_testing(&mut c, 1);
 
         // Vote on the proposal and check that the vote is registered correctly
         next_tx(test, alice);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id_);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let vote_types = proposal.pre_proposal().vote_types();
             // Vote yes
             let vote_type_id = vote_types.front();
@@ -141,9 +141,13 @@ module generis_dao::dao_tests {
 
             let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
 
-            let vote_id = dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id_, vote_type_id, vote_coin, ctx(test));
-
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id_);
+            let vote_id = dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                vote_type_id,
+                vote_coin,
+                ctx(test),
+            );
 
             let votes = proposal.votes();
 
@@ -152,11 +156,10 @@ module generis_dao::dao_tests {
             let vote = votes.borrow(alice);
 
             assert_eq(object::id(vote), vote_id);
-            assert_eq(vote.proposal_id(), proposal_id_);
+            assert_eq(vote.proposal_id(), object::id(&proposal));
             assert_eq(vote.vote_type_id(), vote_type_id);
             assert_eq(vote.balance().value(), 20_000_000_000);
-            
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         // Okay vote 90% with different vote types, votes and addresses
@@ -168,38 +171,39 @@ module generis_dao::dao_tests {
         next_tx(test, alice);
 
         let registry = test::take_shared<ProposalRegistry>(test);
-        let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id_);
+        let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
         let vote_types_yes = *proposal.pre_proposal().vote_types().front().borrow();
         let vote_types_no = *proposal.pre_proposal().vote_types().back().borrow();
         test::return_shared(registry);
+        test::return_shared(proposal);
 
         next_tx(test, bob);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
-            vote_easy(&c, &mut registry, proposal_id_, vote_types_no, 20_000_000_000, ctx(test));
-            vote_easy(&c, &mut registry, proposal_id_, vote_types_no, 10_000_000_000, ctx(test));
+            vote_easy(&mut proposal, &c, vote_types_no, 20_000_000_000, ctx(test));
+            vote_easy(&mut proposal, &c, vote_types_no, 10_000_000_000, ctx(test));
 
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         next_tx(test, charlie);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
-            vote_easy(&c, &mut registry, proposal_id_, vote_types_no, 20_000_000_000, ctx(test));
-            vote_easy(&c, &mut registry, proposal_id_, vote_types_no, 20_000_000_000, ctx(test));
+            vote_easy(&mut proposal, &c, vote_types_no, 20_000_000_000, ctx(test));
+            vote_easy(&mut proposal, &c, vote_types_no, 20_000_000_000, ctx(test));
 
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         next_tx(test, dave);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
-            vote_easy(&c, &mut registry, proposal_id_, vote_types_yes, 10_000_000_000, ctx(test));
+            vote_easy(&mut proposal, &c, vote_types_yes, 10_000_000_000, ctx(test));
 
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         // Let's complete now
@@ -210,18 +214,30 @@ module generis_dao::dao_tests {
         {
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
+            let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
-            let complete_id = dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal_id_, ctx(test));
+            dao::complete<S_ETH, GENERIS>(
+                &admin,
+                &c,
+                &mut registry,
+                proposal,
+                ctx(test),
+            );
 
-            let completed_proposal = registry.get_completed_proposal(complete_id);
+            test::return_shared(registry);
+            test::return_to_sender(test, admin);
+        };
+
+        next_tx(test, alice);
+        {
+            let completed_proposal = test::take_shared<CompletedProposal>(test);
 
             assert_eq(completed_proposal.ended_at(), 101);
             assert_eq(object::id(completed_proposal.approved_vote_type()), vote_types_no);
             assert_eq(completed_proposal.accepted_by(), alice);
             assert_eq(completed_proposal.total_vote_value(), 100_000_000_000);
 
-            test::return_shared(registry);
-            test::return_to_sender(test, admin);
+            test::return_shared(completed_proposal);
         };
 
         // Let's check the rewards
@@ -309,25 +325,29 @@ module generis_dao::dao_tests {
             vote_types.push_back(string::utf8(b"yes"));
             vote_types.push_back(string::utf8(b"no"));
 
-            let pre_proposal_id = dao::create_pre_proposal(
+            dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(100_000_000_000, ctx(test)),
+                mint_for_testing(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
-                ctx(test)
+                ctx(test),
             );
 
-            let pre_proposal = registry.get_pre_proposal(pre_proposal_id);
+            test::return_shared(config);
+            test::return_shared(registry);
+        };
 
+        next_tx(test, alice);
+        {
+            let pre_proposal = test::take_shared<PreProposal>(test);
             assert_eq(pre_proposal.proposer(), alice);
             assert_eq(pre_proposal.name(), string::utf8(b"test"));
             assert_eq(pre_proposal.description(), string::utf8(b"this is a test"));
             assert_eq(pre_proposal.vote_types().length(), 2);
 
-            test::return_shared(config);
-            test::return_shared(registry);
+            test::return_shared(pre_proposal);
         };
 
         test::end(scenario);
@@ -345,8 +365,6 @@ module generis_dao::dao_tests {
 
         let c = clock::create_for_testing(ctx(test));
 
-        let mut pre_proposal_id_: ID = object::id(&c);
-
         next_tx(test, alice);
         {
             let config = test::take_shared<ProposalConfig>(test);
@@ -357,17 +375,15 @@ module generis_dao::dao_tests {
             vote_types.push_back(string::utf8(b"yes"));
             vote_types.push_back(string::utf8(b"no"));
 
-            let pre_proposal_id = dao::create_pre_proposal(
+            dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(100_000_000_000, ctx(test)),
+                mint_for_testing(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
-                ctx(test)
+                ctx(test),
             );
-
-            pre_proposal_id_ = pre_proposal_id;
 
             test::return_shared(config);
             test::return_shared(registry);
@@ -378,21 +394,27 @@ module generis_dao::dao_tests {
             let config = test::take_shared<ProposalConfig>(test);
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let dao_admin = test::take_from_sender<DaoAdmin>(test);
+            let pre_proposal = test::take_shared<PreProposal>(test);
 
-            let proposal_id = dao::approve_pre_proposal<S_ETH, GENERIS>(
+            dao::approve_pre_proposal<S_ETH, GENERIS>(
                 &dao_admin,
                 &mut registry,
-                pre_proposal_id_,
+                pre_proposal,
                 mint_for_testing(100_000_000_000, ctx(test)),
                 1,
                 100,
-                ctx(test)
+                ctx(test),
             );
 
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            test::return_shared(config);
+            test::return_shared(registry);
+            test::return_to_sender(test, dao_admin);
+        };
 
+        next_tx(test, alice);
+        {
+            let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             assert_eq(proposal.accepted_by(), alice);
-            assert_eq(object::id(proposal.pre_proposal()), pre_proposal_id_);
             assert_eq(proposal.reward_pool().is_some(), true);
             assert_eq(proposal.start_time(), 1);
             assert_eq(proposal.end_time(), 100);
@@ -401,9 +423,7 @@ module generis_dao::dao_tests {
             assert_eq(proposal.reward_coin_type(), type_name::get<S_ETH>());
             assert_eq(proposal.vote_coin_type(), type_name::get<GENERIS>());
 
-            test::return_shared(config);
-            test::return_shared(registry);
-            test::return_to_sender(test, dao_admin);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -433,7 +453,7 @@ module generis_dao::dao_tests {
             vote_types.push_back(string::utf8(b"yes"));
             vote_types.push_back(string::utf8(b"no"));
 
-            let proposal_id = dao::create_proposal<S_ETH, GENERIS>(
+            dao::create_proposal<S_ETH, GENERIS>(
                 &dao_admin,
                 &mut registry,
                 string::utf8(b"test"),
@@ -442,11 +462,17 @@ module generis_dao::dao_tests {
                 mint_for_testing(100_000_000_000, ctx(test)),
                 1,
                 100,
-                ctx(test)
+                ctx(test),
             );
 
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            test::return_shared(config);
+            test::return_shared(registry);
+            test::return_to_sender(test, dao_admin);
+        };
 
+        next_tx(test, alice);
+        {
+            let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             assert_eq(proposal.accepted_by(), alice);
             assert_eq(proposal.reward_pool().is_some(), true);
             assert_eq(proposal.start_time(), 1);
@@ -456,9 +482,7 @@ module generis_dao::dao_tests {
             assert_eq(proposal.reward_coin_type(), type_name::get<S_ETH>());
             assert_eq(proposal.vote_coin_type(), type_name::get<GENERIS>());
 
-            test::return_shared(config);
-            test::return_shared(registry);
-            test::return_to_sender(test, dao_admin);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -472,26 +496,28 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+        let mut c = setup_with_approved_proposal(test);
 
         clock::increment_for_testing(&mut c, 1);
 
         next_tx(test, alice);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let vote_types = proposal.pre_proposal().vote_types();
             let vote_type_id = *vote_types.front().borrow();
 
             let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
 
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
-
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                vote_type_id,
+                vote_coin,
+                ctx(test),
+            );
 
             assert_eq(proposal.total_vote_value(), 20_000_000_000);
-
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -505,7 +531,7 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+        let mut c = setup_with_approved_proposal(test);
 
         clock::increment_for_testing(&mut c, 99);
 
@@ -513,28 +539,39 @@ module generis_dao::dao_tests {
         {
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
-            let vote_type_id = *registry.get_proposal<S_ETH, GENERIS>(proposal_id).pre_proposal().vote_types().front().borrow();
-            vote_easy(&c, &mut registry, proposal_id, vote_type_id, 20_000_000_000, ctx(test));
+            let vote_type_id = *proposal.pre_proposal().vote_types().front().borrow();
+
+            vote_easy(&mut proposal, &c, vote_type_id, 20_000_000_000, ctx(test));
 
             clock::increment_for_testing(&mut c, 2);
 
-            let complete_id = dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal_id, ctx(test));
-
-            let completed_proposal = registry.get_completed_proposal(complete_id);
-
-            assert_eq(completed_proposal.ended_at(), 101);
-            assert_eq(completed_proposal.accepted_by(), alice);
-            assert_eq(completed_proposal.total_vote_value(), 20_000_000_000);
+            dao::complete<S_ETH, GENERIS>(
+                &admin,
+                &c,
+                &mut registry,
+                proposal,
+                ctx(test),
+            );
 
             test::return_shared(registry);
             test::return_to_sender(test, admin);
         };
 
+        next_tx(test, alice);
+        {
+            let completed_proposal = test::take_shared<CompletedProposal>(test);
+            assert_eq(completed_proposal.ended_at(), 101);
+            assert_eq(completed_proposal.accepted_by(), alice);
+            assert_eq(completed_proposal.total_vote_value(), 20_000_000_000);
+
+            test::return_shared(completed_proposal);
+        };
+
         clock::destroy_for_testing(c);
         test::end(scenario);
     }
-
 
     #[test]
     #[lint_allow(share_owned)]
@@ -544,20 +581,25 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, c) = setup_with_approved_proposal(test);
+        let c = setup_with_approved_proposal(test);
 
         next_tx(test, alice);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let vote_types = proposal.pre_proposal().vote_types();
             let vote_type_id = *vote_types.front().borrow();
 
             let vote_coin = mint_for_testing<GENERIS>(0, ctx(test));
 
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
+            dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                vote_type_id,
+                vote_coin,
+                ctx(test),
+            );
 
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -572,22 +614,27 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+        let mut c = setup_with_approved_proposal(test);
 
         clock::increment_for_testing(&mut c, 101);
 
         next_tx(test, alice);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let vote_types = proposal.pre_proposal().vote_types();
             let vote_type_id = *vote_types.front().borrow();
 
             let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
 
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
+            dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                vote_type_id,
+                vote_coin,
+                ctx(test),
+            );
 
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -602,49 +649,27 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+        let mut c = setup_with_approved_proposal(test);
 
         clock::increment_for_testing(&mut c, 0);
 
         next_tx(test, alice);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let vote_types = proposal.pre_proposal().vote_types();
             let vote_type_id = *vote_types.front().borrow();
 
             let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
 
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
+            dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                vote_type_id,
+                vote_coin,
+                ctx(test),
+            );
 
-            test::return_shared(registry);
-        };
-
-        clock::destroy_for_testing(c);
-        test::end(scenario);
-    }
-
-    #[test]
-    #[lint_allow(share_owned)]
-    #[expected_failure(abort_code = dao::EProposalDoesNotExist)]
-    fun test_vote_on_non_existent_proposal() {
-        let mut scenario = scenario();
-        let (alice, _) = people();
-
-        let test = &mut scenario;
-
-        set_up(test);
-        
-        let c = clock::create_for_testing(ctx(test));
-
-        next_tx(test, alice);
-        {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-            let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
-
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, object::id(&c), object::id(&c), vote_coin, ctx(test));
-
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -659,19 +684,24 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+        let mut c = setup_with_approved_proposal(test);
 
         clock::increment_for_testing(&mut c, 1);
 
         next_tx(test, alice);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
 
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, object::id(&c), vote_coin, ctx(test));
+            dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                object::id(&c),
+                vote_coin,
+                ctx(test),
+            );
 
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -686,26 +716,36 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+        let mut c = setup_with_approved_proposal(test);
 
         clock::increment_for_testing(&mut c, 1);
 
         next_tx(test, alice);
         {
-            let mut registry = test::take_shared<ProposalRegistry>(test);
-            let proposal = registry.get_proposal<S_ETH, GENERIS>(proposal_id);
+            let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
             let vote_types = proposal.pre_proposal().vote_types();
             let vote_type_id = *vote_types.front().borrow();
             let vote_type_id_2 = *vote_types.back().borrow();
 
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id, vote_coin, ctx(test));
-            
+            dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                vote_type_id,
+                vote_coin,
+                ctx(test),
+            );
             let vote_coin = mint_for_testing<GENERIS>(20_000_000_000, ctx(test));
 
-            dao::vote<S_ETH, GENERIS>(&mut registry, &c, proposal_id, vote_type_id_2, vote_coin, ctx(test));
+            dao::vote<S_ETH, GENERIS>(
+                &mut proposal,
+                &c,
+                vote_type_id_2,
+                vote_coin,
+                ctx(test),
+            );
 
-            test::return_shared(registry);
+            test::return_shared(proposal);
         };
 
         clock::destroy_for_testing(c);
@@ -720,14 +760,15 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, c) = setup_with_approved_proposal(test);
+        let c = setup_with_approved_proposal(test);
 
         next_tx(test, alice);
         {
             let mut registry = test::take_shared<ProposalRegistry>(test);
+            let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
 
-            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal_id, ctx(test));
+            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal, ctx(test));
 
             test::return_shared(registry);
             test::return_to_sender(test, admin);
@@ -745,16 +786,17 @@ module generis_dao::dao_tests {
         let (alice, _) = people();
 
         let test = &mut scenario;
-        let (proposal_id, mut c) = setup_with_approved_proposal(test);
+        let mut c = setup_with_approved_proposal(test);
 
         clock::increment_for_testing(&mut c, 101);
 
         next_tx(test, alice);
         {
             let mut registry = test::take_shared<ProposalRegistry>(test);
+            let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
 
-            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal_id, ctx(test));
+            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal, ctx(test));
 
             test::return_shared(registry);
             test::return_to_sender(test, admin);
@@ -792,7 +834,7 @@ module generis_dao::dao_tests {
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
-                ctx(test)
+                ctx(test),
             );
 
             test::return_shared(config);
@@ -825,11 +867,11 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(100_000_000_000, ctx(test)),
+                mint_for_testing(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
-                ctx(test)
+                ctx(test),
             );
 
             test::return_shared(config);
@@ -839,16 +881,14 @@ module generis_dao::dao_tests {
         test::end(scenario);
     }
 
-    fun setup_with_approved_proposal(test: &mut Scenario): (ID, Clock) {
+    fun setup_with_approved_proposal(test: &mut Scenario): Clock {
         let (alice, _) = people();
         next_tx(test, alice);
         {
             dao::init_for_testing(ctx(test));
         };
 
-        let mut c = clock::create_for_testing(ctx(test));
-
-        let mut pre_proposal_id_: ID = object::id(&c);
+        let c = clock::create_for_testing(ctx(test));
 
         next_tx(test, alice);
         {
@@ -860,54 +900,55 @@ module generis_dao::dao_tests {
             vote_types.push_back(string::utf8(b"yes"));
             vote_types.push_back(string::utf8(b"no"));
 
-            let pre_proposal_id = dao::create_pre_proposal(
+            dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(100_000_000_000, ctx(test)),
+                mint_for_testing(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
-                ctx(test)
+                ctx(test),
             );
-
-            pre_proposal_id_ = pre_proposal_id;
 
             test::return_shared(config);
             test::return_shared(registry);
         };
-
-        let mut proposal_id_: ID = object::id(&c);
 
         next_tx(test, alice);
         {
             let config = test::take_shared<ProposalConfig>(test);
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let dao_admin = test::take_from_sender<DaoAdmin>(test);
+            let pre_proposal = test::take_shared<PreProposal>(test);
 
-            let proposal_id = dao::approve_pre_proposal<S_ETH, GENERIS>(
+            dao::approve_pre_proposal<S_ETH, GENERIS>(
                 &dao_admin,
                 &mut registry,
-                pre_proposal_id_,
+                pre_proposal,
                 mint_for_testing(100_000_000_000, ctx(test)),
                 1,
                 100,
-                ctx(test)
+                ctx(test),
             );
 
             test::return_shared(config);
             test::return_shared(registry);
             test::return_to_sender(test, dao_admin);
-            proposal_id_ = proposal_id;
         };
 
-
-        (proposal_id_, c)
+        c
     }
 
-    fun vote_easy(c: &Clock, registry: &mut ProposalRegistry, proposal_id: ID, vote_type_id: ID, amount: u64, ctx: &mut TxContext) {
+    fun vote_easy(
+        proposal: &mut Proposal<S_ETH, GENERIS>,
+        c: &Clock,
+        vote_type_id: ID,
+        amount: u64,
+        ctx: &mut TxContext,
+    ) {
         let vote_coin = mint_for_testing<GENERIS>(amount, ctx);
 
-        dao::vote<S_ETH, GENERIS>(registry, c, proposal_id, vote_type_id, vote_coin, ctx);
+        dao::vote<S_ETH, GENERIS>(proposal, c, vote_type_id, vote_coin, ctx);
     }
 
     #[lint_allow(share_owned)]

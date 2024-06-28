@@ -1,6 +1,4 @@
 module generis_dao::pre_proposal {
-    // === Imports ===
-
     use generis_dao::vote_type::{Self, VoteType};
     use sui::linked_table::{Self, LinkedTable};
     use std::string::String;
@@ -16,7 +14,7 @@ module generis_dao::pre_proposal {
         /// The description of the {PreProposal}.
         description: String,
         /// Vote Types
-        vote_types: LinkedTable<ID, VoteType>
+        vote_types: LinkedTable<ID, VoteType>,
     }
 
     // === Public-Mutative Functions ===
@@ -25,7 +23,7 @@ module generis_dao::pre_proposal {
         name: String,
         description: String,
         vote_types: vector<String>,
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ): PreProposal {
         let mut pre_proposal = PreProposal {
             id: object::new(ctx),
@@ -43,7 +41,7 @@ module generis_dao::pre_proposal {
                 vote_types.pop_back(),
                 proposal_id,
                 0,
-                ctx
+                ctx,
             );
 
             let vote_type_id = object::id(&vote_type);
@@ -54,7 +52,9 @@ module generis_dao::pre_proposal {
         pre_proposal
     }
 
-    public fun mut_vote_types(pre_proposal: &mut PreProposal): &mut LinkedTable<ID, VoteType> {
+    public(package) fun mut_vote_types(
+        pre_proposal: &mut PreProposal,
+    ): &mut LinkedTable<ID, VoteType> {
         &mut pre_proposal.vote_types
     }
 

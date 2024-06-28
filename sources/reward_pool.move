@@ -19,17 +19,18 @@ module generis_dao::reward_pool {
     // === Public-Mutative Functions ===
 
     public fun new<T>(in: Coin<T>, ctx: &mut TxContext): RewardPool<T> {
-        RewardPool {
-            id: object::new(ctx),
-            balance: in.into_balance(),
-        }
+        RewardPool { id: object::new(ctx), balance: in.into_balance() }
     }
 
     public fun add_to_pool<T>(pool: &mut RewardPool<T>, in: Coin<T>) {
         pool.balance.join(in.into_balance());
     }
 
-    public fun remove_from_pool<T>(pool: &mut RewardPool<T>, amount: u64, ctx: &mut TxContext): Coin<T> {
+    public fun remove_from_pool<T>(
+        pool: &mut RewardPool<T>,
+        amount: u64,
+        ctx: &mut TxContext,
+    ): Coin<T> {
         assert!(pool.balance.value() >= amount, EInsufficientPoolBalance);
         coin::from_balance(pool.balance.split(amount), ctx)
     }

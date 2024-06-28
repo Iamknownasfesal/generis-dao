@@ -1,6 +1,4 @@
 module generis_dao::completed_proposal {
-    // === Imports ===
-
     use generis_dao::pre_proposal::PreProposal;
     use generis_dao::vote_type::VoteType;
 
@@ -28,7 +26,7 @@ module generis_dao::completed_proposal {
         approved_vote_type: VoteType,
         accepted_by: address,
         total_vote_value: u64,
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ): CompletedProposal {
         CompletedProposal {
             id: object::new(ctx),

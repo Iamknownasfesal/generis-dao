@@ -1,13 +1,10 @@
 module generis_dao::dao_admin {
-
-    // === Structs ===
-
     public struct DaoAdmin has key, store { id: UID }
 
     // === Public-Mutative Functions ===
 
     public(package) fun new(ctx: &mut TxContext): DaoAdmin {
-        DaoAdmin {id: object::new(ctx)}
+        DaoAdmin { id: object::new(ctx) }
     }
 
     public fun new_from_another_admin(_: &DaoAdmin, ctx: &mut TxContext): DaoAdmin {

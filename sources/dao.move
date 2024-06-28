@@ -1,16 +1,14 @@
 module generis_dao::dao {
-    // === Imports ===
-
     use generis_dao::reward_pool::RewardPool;
     use generis_dao::dao_admin::{Self, DaoAdmin};
     use generis_dao::config::{Self, ProposalConfig};
     use generis_dao::pre_proposal::{Self, PreProposal};
     use generis_dao::proposal::{Self, Proposal};
-    use generis_dao::completed_proposal::{Self, CompletedProposal};
+    use generis_dao::completed_proposal;
+    use generis_dao::proposal_registry::{Self, ProposalRegistry};
     use generis_dao::vote::{Self, Vote};
     use generis_dao::vote_type::{VoteType};
     use generis::generis::GENERIS;
-    use sui::object_bag::{Self, ObjectBag};
     use sui::coin::{Self, Coin};
     use sui::clock::Clock;
     use sui::event::emit;
@@ -18,44 +16,40 @@ module generis_dao::dao {
 
     // === Errors ===
 
+    // Voting Errors
     /// The user cannot vote with a zero coin value.
-    const ECannotVoteWithZeroCoinValue: u64 = 0;
+    const ECannotVoteWithZeroCoinValue: u64 = 1;
     /// The user cannot vote after the `end_time`.
-    const ETooLateToVote: u64 = 1;
+    const ETooLateToVote: u64 = 2;
     /// The user cannot vote before the `start_time`.
-    const ETooSoonToVote: u64 = 2;
-    /// The proposal does not exist.
-    const EProposalDoesNotExist: u64 = 3;
-    /// {VoteCoinype} does not exist.
-    const EVoteTypeDoesNotExist: u64 = 4;
-    /// Already voted, cannot vote different {VoteCoinype}.
-    const ECannotVoteDifferentVoteCoinType: u64 = 5;
-    /// The proposal cannot yet be completed.
-    const EProposalCannotBeCompletedYet: u64 = 6;
+    const ETooSoonToVote: u64 = 3;
+    /// Already voted, cannot vote different {VoteCoinType}.
+    const ECannotVoteDifferentVoteCoinType: u64 = 4;
     /// {VoteType} cannot be {None}
-    const EVoteTypeCannotBeNone: u64 = 7;
+    const EVoteTypeCannotBeNone: u64 = 5;
+
+    // Proposal Errors
     /// Not enough Generis to create a proposal.
-    const ENotEnoughGenerisToCreateProposal: u64 = 8;
+    const ENotEnoughGenerisToCreateProposal: u64 = 6;
+    /// User should have more than the minimum amount of Generis to create a proposal.
+    const EUserShouldHaveMoreThanMinimumGeneris: u64 = 7;
+    /// The proposal cannot yet be completed.
+    const EProposalCannotBeCompletedYet: u64 = 8;
     /// There is still rewards in the reward pool.
     const ECannotDeleteProposalWithRewards: u64 = 9;
+    /// Cannot extend the proposal with an `end_time` smaller than the current `end_time`.
+    const ECannotExtendProposalWithSmallerEndTime: u64 = 10;
+
+    // Vote Type Errors
+    /// {VoteType} does not exist.
+    const EVoteTypeDoesNotExist: u64 = 11;
     /// At least two vote types are required.
-    const EAtLeastTwoVoteTypesAreRequired: u64 = 10;
+    const EAtLeastTwoVoteTypesAreRequired: u64 = 12;
 
     // === Constants ===
 
     const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
-
-    // === Structs ===
-
-    public struct ProposalRegistry has key, store {
-        id: UID,
-        /// Completed {Proposal}s
-        completed_proposals: ObjectBag,
-        /// Active {Proposal}s
-        active_proposals: ObjectBag,
-        /// Pre {Proposal}s
-        pre_proposals: ObjectBag,
-    }
+    const DEFAULT_PRE_PROPOSAL_MIN: u64 = 1_000_000_000_000;
 
     // === Events ===
 
@@ -81,48 +75,55 @@ module generis_dao::dao {
 
     #[lint_allow(share_owned)]
     fun init(ctx: &mut TxContext) {
-        transfer::public_share_object(
-            ProposalRegistry {
-                id: object::new(ctx),
-                completed_proposals: object_bag::new(ctx),
-                active_proposals: object_bag::new(ctx),
-                pre_proposals: object_bag::new(ctx),
-            }
-        );
+        transfer::public_share_object(proposal_registry::new(ctx));
 
         transfer::public_transfer(
             dao_admin::new(ctx),
-            ctx.sender()
+            ctx.sender(),
         );
 
-        transfer::public_share_object(
-            config::new(DEFAULT_PRE_PROPOSAL_FEES, @dao, ctx)
-        )
+        transfer::public_share_object(config::new(
+            DEFAULT_PRE_PROPOSAL_FEES,
+            @dao,
+            DEFAULT_PRE_PROPOSAL_MIN,
+            ctx,
+        ))
     }
 
     // === Public-Mutative Functions ===
 
-    public fun create_pre_proposal(
+    #[lint_allow(share_owned)]
+    public entry fun create_pre_proposal(
         config: &ProposalConfig,
         registry: &mut ProposalRegistry,
         generis_in: Coin<GENERIS>,
         name: String,
         description: String,
         vote_types: vector<String>,
-        ctx: &mut TxContext
-    ): ID {
+        ctx: &mut TxContext,
+    ) {
         assert!(generis_in.value() >= config.fee(), ENotEnoughGenerisToCreateProposal);
+        assert!(
+            generis_in.value() >= config.min_generis_to_create_proposal(),
+            EUserShouldHaveMoreThanMinimumGeneris,
+        );
         assert!(vote_types.length() >= 2, EAtLeastTwoVoteTypesAreRequired);
+        let mut generis_in = generis_in;
+        transfer::public_transfer(
+            generis_in.split(config.fee(), ctx),
+            config.receiver(),
+        );
+
         transfer::public_transfer(
             generis_in,
-            config.receiver()
+            ctx.sender(),
         );
 
         let pre_proposal = pre_proposal::new(
             name,
             description,
             vote_types,
-            ctx
+            ctx,
         );
 
         emit(PreProposalCreated {
@@ -132,17 +133,13 @@ module generis_dao::dao {
             description: pre_proposal.description(),
         });
 
-        let pre_proposal_id = object::id(&pre_proposal);
+        registry.add_pre_proposal(object::id(&pre_proposal));
 
-        registry.pre_proposals.add(
-            pre_proposal_id,
-            pre_proposal
-        );
-
-        pre_proposal_id
+        transfer::public_share_object(pre_proposal);
     }
 
-    public fun create_proposal<RewardCoin, VoteCoin>(
+    #[lint_allow(share_owned)]
+    public entry fun create_proposal<RewardCoin, VoteCoin>(
         _: &DaoAdmin,
         registry: &mut ProposalRegistry,
         name: String,
@@ -151,20 +148,20 @@ module generis_dao::dao {
         reward_coin: Coin<RewardCoin>,
         start_time: u64,
         end_time: u64,
-        ctx: &mut TxContext
-    ): ID {
+        ctx: &mut TxContext,
+    ) {
         let pre_proposal = pre_proposal::new(
             name,
             description,
             vote_types,
-            ctx
+            ctx,
         );
 
         emit(PreProposalCreated {
             pre_proposal_id: object::id(&pre_proposal),
             proposer: ctx.sender(),
             name: pre_proposal.name(),
-            description: pre_proposal.description()
+            description: pre_proposal.description(),
         });
 
         let proposal = proposal::new<RewardCoin, VoteCoin>(
@@ -172,7 +169,7 @@ module generis_dao::dao {
             reward_coin,
             start_time,
             end_time,
-            ctx
+            ctx,
         );
 
         let proposal_id = object::id(&proposal);
@@ -183,32 +180,29 @@ module generis_dao::dao {
             pre_proposal_id: object::id(proposal.pre_proposal()),
         });
 
-        registry.active_proposals.add(
-            proposal_id,
-            proposal
-        );
+        registry.add_active_proposal(proposal_id);
 
-        proposal_id
+        transfer::public_share_object(proposal);
     }
 
-    public fun approve_pre_proposal<RewardCoin, VoteCoin>(
+    #[lint_allow(share_owned)]
+    public entry fun approve_pre_proposal<RewardCoin, VoteCoin>(
         _: &DaoAdmin,
         registry: &mut ProposalRegistry,
-        pre_proposal_id: ID,
+        pre_proposal: PreProposal,
         reward_coin: Coin<RewardCoin>,
         start_time: u64,
         end_time: u64,
-        ctx: &mut TxContext
-    ): ID {
-        assert!(registry.pre_proposals.contains(pre_proposal_id), EProposalDoesNotExist);
-        let pre_proposal: PreProposal = registry.pre_proposals.remove(pre_proposal_id);
+        ctx: &mut TxContext,
+    ) {
+        registry.remove_pre_proposal(object::id(&pre_proposal));
 
         let proposal = proposal::new<RewardCoin, VoteCoin>(
             pre_proposal,
             reward_coin,
             start_time,
             end_time,
-            ctx
+            ctx,
         );
 
         let proposal_id = object::id(&proposal);
@@ -219,27 +213,19 @@ module generis_dao::dao {
             pre_proposal_id: object::id(proposal.pre_proposal()),
         });
 
-        registry.active_proposals.add(
-            proposal_id,
-            proposal
-        );
-
-        proposal_id
+        transfer::public_share_object(proposal);
+        registry.add_active_proposal(proposal_id);
     }
 
     public fun vote<RewardCoin, VoteCoin>(
-        registry: &mut ProposalRegistry,
+        proposal: &mut Proposal<RewardCoin, VoteCoin>,
         clock: &Clock,
-        proposal_id: ID,
         vote_type_id: ID,
         vote_coin: Coin<VoteCoin>,
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ): ID {
-        assert!(registry.active_proposals.contains(proposal_id), EProposalDoesNotExist);
         let value = vote_coin.value();
         assert!(value > 0, ECannotVoteWithZeroCoinValue);
-
-        let proposal: &mut Proposal<RewardCoin, VoteCoin> = registry.active_proposals.borrow_mut(proposal_id);
 
         assert!(clock.timestamp_ms() >= proposal.start_time(), ETooSoonToVote);
         assert!(clock.timestamp_ms() <= proposal.end_time(), ETooLateToVote);
@@ -254,9 +240,9 @@ module generis_dao::dao {
         } else {
             let vote = vote::new(
                 vote_coin.into_balance(),
-                proposal_id,
+                object::id(proposal),
                 vote_type_id,
-                ctx
+                ctx,
             );
 
             proposal.mut_votes().push_back(ctx.sender(), vote);
@@ -264,21 +250,25 @@ module generis_dao::dao {
 
         proposal.add_vote_value(value);
 
-        let vote_type: &mut VoteType = proposal.mut_pre_proposal().mut_vote_types().borrow_mut(vote_type_id);
+        let vote_type: &mut VoteType = proposal
+            .mut_pre_proposal()
+            .mut_vote_types()
+            .borrow_mut(vote_type_id);
         vote_type.add_vote_value(value);
 
         object::id(proposal.votes().borrow(ctx.sender()))
     }
 
-    public fun complete<RewardCoin, VoteCoin>(
+    #[lint_allow(share_owned)]
+    public entry fun complete<RewardCoin, VoteCoin>(
         _: &DaoAdmin,
         clock: &Clock,
         registry: &mut ProposalRegistry,
-        proposal_id: ID,
-        ctx: &mut TxContext
-    ): ID {
-        assert!(registry.active_proposals.contains(proposal_id), EProposalDoesNotExist);
-        let mut proposal: Proposal<RewardCoin, VoteCoin> = registry.active_proposals.remove(proposal_id);
+        proposal: Proposal<RewardCoin, VoteCoin>,
+        ctx: &mut TxContext,
+    ) {
+        let proposal_id = object::id(&proposal);
+        registry.remove_active_proposal(proposal_id);
         assert!(clock.timestamp_ms() >= proposal.end_time(), EProposalCannotBeCompletedYet);
 
         let mut max_vote_value = 0;
@@ -300,6 +290,7 @@ module generis_dao::dao {
         assert!(approved_vote_type.is_some(), EVoteTypeCannotBeNone);
 
         let approved_vote_type = approved_vote_type.extract();
+        let mut proposal = proposal;
         share_incentive_pool_rewards(&mut proposal, ctx);
 
         let (pre_proposal, accepted_by, reward_pool, votes, total_vote_value) = proposal.destroy();
@@ -313,32 +304,34 @@ module generis_dao::dao {
             approved_vote_type,
             accepted_by,
             total_vote_value,
-            ctx
+            ctx,
         );
 
         let completed_proposal_id = object::id(&completed_proposal);
 
-        registry.completed_proposals.add(
-            completed_proposal_id,
-            completed_proposal
-        );
+        registry.add_completed_proposal(completed_proposal_id);
 
-        emit(ProposalCompleted {
-            proposal_id,
-            completed_proposal_id,
-        });
+        emit(ProposalCompleted { proposal_id, completed_proposal_id });
 
+        transfer::public_share_object(completed_proposal);
         votes.destroy_empty();
         reward_pool.destroy_none();
+    }
 
-        completed_proposal_id
+    public entry fun extend_proposal<RewardCoin, VoteCoin>(
+        _: &DaoAdmin,
+        proposal: &mut Proposal<RewardCoin, VoteCoin>,
+        end_time: u64,
+    ) {
+        assert!(end_time > proposal.end_time(), ECannotExtendProposalWithSmallerEndTime);
+        proposal.extend_time(end_time);
     }
 
     // === Private Functions ===
 
     fun share_incentive_pool_rewards<RewardCoin, VoteCoin>(
         proposal: &mut Proposal<RewardCoin, VoteCoin>,
-        ctx: &mut TxContext
+        ctx: &mut TxContext,
     ) {
         let reward_pool: RewardPool<RewardCoin> = proposal.mut_reward_pool().extract();
         let total_vote_value = proposal.total_vote_value() as u128;
@@ -353,7 +346,7 @@ module generis_dao::dao {
 
             transfer::public_transfer(
                 reward_coins.split(reward as u64, ctx),
-                addr
+                addr,
             );
 
             transfer::public_transfer(coin::from_balance(vote_balance, ctx), addr);
@@ -362,20 +355,6 @@ module generis_dao::dao {
         // This will return anways if the total_reward is not zero, so if any math error happens, the reward will saved.
         assert!(reward_coins.value() == 0, ECannotDeleteProposalWithRewards);
         reward_coins.destroy_zero();
-    }
-
-    // === Public-View Functions ===
-
-    public fun get_pre_proposal(registry: &ProposalRegistry, pre_proposal_id: ID): &PreProposal {
-        registry.pre_proposals.borrow(pre_proposal_id)
-    }
-
-    public fun get_proposal<RewardCoin, VoteCoin>(registry: &ProposalRegistry, proposal_id: ID): &Proposal<RewardCoin, VoteCoin> {
-        registry.active_proposals.borrow(proposal_id)
-    }
-
-    public fun get_completed_proposal(registry: &ProposalRegistry, completed_proposal_id: ID): &CompletedProposal {
-        registry.completed_proposals.borrow(completed_proposal_id)
     }
 
     // === Test Functions ===

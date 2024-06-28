@@ -1,6 +1,4 @@
 module generis_dao::vote {
-    // === Imports ===
-
     use sui::balance::Balance;
 
     // === Structs ===
@@ -17,13 +15,13 @@ module generis_dao::vote {
 
     // === Public-Mutative Functions ===
 
-    public(package) fun new<VoteCoin>(balance: Balance<VoteCoin>, proposal_id: ID, vote_type_id: ID, ctx: &mut TxContext): Vote<VoteCoin> {
-        Vote {
-            id: object::new(ctx),
-            balance,
-            proposal_id,
-            vote_type_id,
-        }
+    public(package) fun new<VoteCoin>(
+        balance: Balance<VoteCoin>,
+        proposal_id: ID,
+        vote_type_id: ID,
+        ctx: &mut TxContext,
+    ): Vote<VoteCoin> {
+        Vote { id: object::new(ctx), balance, proposal_id, vote_type_id }
     }
 
     public fun destroy<VoteCoin>(vote: Vote<VoteCoin>): (Balance<VoteCoin>, ID, ID) {

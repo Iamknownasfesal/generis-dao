@@ -1,6 +1,4 @@
 module generis_dao::vote_type {
-    // === Imports ===
-
     use std::string::String;
 
     // === Structs ===
@@ -17,13 +15,13 @@ module generis_dao::vote_type {
 
     // === Public-Mutative Functions ===
 
-    public(package) fun new(name: String, proposal_id: ID, total_vote_value: u64, ctx: &mut TxContext): VoteType {
-        VoteType {
-            id: object::new(ctx),
-            name,
-            proposal_id,
-            total_vote_value,
-        }
+    public(package) fun new(
+        name: String,
+        proposal_id: ID,
+        total_vote_value: u64,
+        ctx: &mut TxContext,
+    ): VoteType {
+        VoteType { id: object::new(ctx), name, proposal_id, total_vote_value }
     }
 
     public fun add_vote_value(self: &mut VoteType, value: u64) {
