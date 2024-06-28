@@ -107,7 +107,10 @@ module generis_dao::dao {
             utf8(b"image_url"),
             utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
         );
-        display.update_version();
+        display.add(
+            utf8(b"index"),
+            utf8(b"{number}"),
+        );
 
         transfer::public_transfer(display, ctx.sender());
 
