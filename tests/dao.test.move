@@ -220,16 +220,19 @@ module generis_dao::dao_tests {
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
             let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
+            let config = test::take_shared<ProposalConfig>(test);
 
             dao::complete<S_ETH, GENERIS>(
                 &admin,
                 &c,
                 &mut registry,
+                &config,
                 proposal,
                 ctx(test),
             );
 
             test::return_shared(registry);
+            test::return_shared(config);
             test::return_to_sender(test, admin);
         };
 
@@ -548,6 +551,7 @@ module generis_dao::dao_tests {
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
             let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
+            let config = test::take_shared<ProposalConfig>(test);
 
             let vote_type_id = *proposal.pre_proposal().vote_types().front().borrow();
 
@@ -559,11 +563,13 @@ module generis_dao::dao_tests {
                 &admin,
                 &c,
                 &mut registry,
+                &config,
                 proposal,
                 ctx(test),
             );
 
             test::return_shared(registry);
+            test::return_shared(config);
             test::return_to_sender(test, admin);
         };
 
@@ -775,10 +781,12 @@ module generis_dao::dao_tests {
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
+            let config = test::take_shared<ProposalConfig>(test);
 
-            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal, ctx(test));
+            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, &config, proposal, ctx(test));
 
             test::return_shared(registry);
+            test::return_shared(config);
             test::return_to_sender(test, admin);
         };
 
@@ -803,10 +811,12 @@ module generis_dao::dao_tests {
             let mut registry = test::take_shared<ProposalRegistry>(test);
             let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
             let admin = test::take_from_sender<DaoAdmin>(test);
+            let config = test::take_shared<ProposalConfig>(test);
 
-            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, proposal, ctx(test));
+            dao::complete<S_ETH, GENERIS>(&admin, &c, &mut registry, &config, proposal, ctx(test));
 
             test::return_shared(registry);
+            test::return_shared(config);
             test::return_to_sender(test, admin);
         };
 

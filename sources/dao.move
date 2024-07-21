@@ -114,13 +114,15 @@ module generis_dao::dao {
 
         transfer::public_transfer(display, ctx.sender());
 
-        transfer::public_share_object(config::new(
-            DEFAULT_PRE_PROPOSAL_FEES,
-            @dao,
-            DEFAULT_PRE_PROPOSAL_MIN,
-            publisher,
-            ctx,
-        ))
+        transfer::public_share_object(
+            config::new(
+                DEFAULT_PRE_PROPOSAL_FEES,
+                @dao,
+                DEFAULT_PRE_PROPOSAL_MIN,
+                publisher,
+                ctx,
+            ),
+        )
     }
 
     // === Public-Mutative Functions ===
@@ -302,6 +304,7 @@ module generis_dao::dao {
         _: &DaoAdmin,
         clock: &Clock,
         registry: &mut ProposalRegistry,
+        config: &ProposalConfig,
         proposal: Proposal<RewardCoin, VoteCoin>,
         ctx: &mut TxContext,
     ) {
@@ -337,13 +340,14 @@ module generis_dao::dao {
             accepted_by,
             reward_pool,
             votes,
-            total_vote_value
+            total_vote_value,
         ) = proposal.destroy();
 
         let mut pre_proposal = pre_proposal;
         let approved_vote_type: VoteType = pre_proposal.mut_vote_types().remove(approved_vote_type);
 
         let completed_proposal = completed_proposal::new(
+            config,
             number,
             pre_proposal,
             clock.timestamp_ms(),

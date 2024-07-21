@@ -3,7 +3,8 @@ module generis_dao::proposal {
     use generis_dao::pre_proposal::{PreProposal};
     use generis_dao::vote::Vote;
     use generis_dao::config::ProposalConfig;
-    use sui::display::{Self, Display};
+    use generis_dao::display_wrapper;
+    use sui::display;
     use sui::linked_table::{Self, LinkedTable};
     use sui::coin::Coin;
     use std::string::utf8;
@@ -35,13 +36,9 @@ module generis_dao::proposal {
         vote_coin_type: TypeName,
     }
 
-    public struct DisplayWrapper<phantom RewardCoin, phantom VoteCoin> has key, store {
-        id: UID,
-        display: Display<Proposal<RewardCoin, VoteCoin>>,
-    }
-
     // === Public-Mutative Functions ===
 
+    #[allow(lint(share_owned))]
     public(package) fun new<RewardCoin, VoteCoin>(
         config: &ProposalConfig,
         pre_proposal: PreProposal,
@@ -83,7 +80,7 @@ module generis_dao::proposal {
         );
         display.update_version();
 
-        transfer::public_share_object(DisplayWrapper { id: object::new(ctx), display });
+        transfer::public_share_object(display_wrapper::new(display, ctx));
 
         proposal
     }
