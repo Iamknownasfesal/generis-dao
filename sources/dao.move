@@ -86,7 +86,7 @@ module generis_dao::dao {
 
         let sender = ctx.sender();
         dao_admin::new(sender, ctx);
-        dao_admin::new_dao_admin(sender, ctx);
+        transfer::public_transfer(dao_admin::new_dao_admin(ctx), sender);
 
         let mut display = display::new<PreProposal>(&publisher, ctx);
         display.add(utf8(b"name"), utf8(b"Sui Generis Pre-Proposal: {name}"));
