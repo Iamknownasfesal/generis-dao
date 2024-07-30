@@ -12,12 +12,15 @@ module generis_dao::dao {
         vote::{Self, Vote},
         vote_type::VoteType
     };
-    use std::string::{String, utf8};
+    use std::{string::{String, utf8}, type_name};
     use sui::{clock::Clock, coin::{Self, Coin}, display, event::emit, package};
 
     // === Errors ===
 
     // Voting Errors
+
+    /// Invalid Payment Type
+    const EInvalidPaymentType: u64 = 0;
     /// The user cannot vote with a zero coin value.
     const ECannotVoteWithZeroCoinValue: u64 = 1;
     /// The user cannot vote after the `end_time`.
@@ -31,9 +34,9 @@ module generis_dao::dao {
 
     // Proposal Errors
     /// Not enough Generis to create a proposal.
-    const ENotEnoughGenerisToCreateProposal: u64 = 6;
+    const ENotEnoughInToCreateProposal: u64 = 6;
     /// User should have more than the minimum amount of Generis to create a proposal.
-    const EUserShouldHaveMoreThanMinimumGeneris: u64 = 7;
+    const EUserShouldHaveMoreThanMinimumIn: u64 = 7;
     /// The proposal cannot yet be completed.
     const EProposalCannotBeCompletedYet: u64 = 8;
     /// There is still rewards in the reward pool.
@@ -116,7 +119,7 @@ module generis_dao::dao {
         transfer::public_share_object(display_wrapper::new(display, ctx));
 
         transfer::public_share_object(
-            config::new(
+            config::new<GENERIS>(
                 DEFAULT_PRE_PROPOSAL_FEES,
                 @dao_treasury,
                 DEFAULT_PRE_PROPOSAL_MIN,
@@ -129,32 +132,36 @@ module generis_dao::dao {
     // === Public-Mutative Functions ===
 
     #[lint_allow(share_owned)]
-    public entry fun create_pre_proposal(
+    public entry fun create_pre_proposal<PaymentCoin>(
         config: &ProposalConfig,
         registry: &mut ProposalRegistry,
-        generis_in: Coin<GENERIS>,
+        in: Coin<PaymentCoin>,
         name: String,
         description: String,
         vote_types: vector<String>,
         ctx: &mut TxContext,
     ) {
         assert!(
-            generis_in.value() >= config.fee(),
-            ENotEnoughGenerisToCreateProposal,
+            in.value() >= config.fee(),
+            ENotEnoughInToCreateProposal,
         );
         assert!(
-            generis_in.value() >= config.min_generis_to_create_proposal(),
-            EUserShouldHaveMoreThanMinimumGeneris,
+            in.value() >= config.min_in_to_create_proposal(),
+            EUserShouldHaveMoreThanMinimumIn,
         );
         assert!(vote_types.length() >= 2, EAtLeastTwoVoteTypesAreRequired);
-        let mut generis_in = generis_in;
+        assert!(
+            type_name::get<PaymentCoin>() == config.payment_type(),
+            EInvalidPaymentType,
+        );
+        let mut in = in;
         transfer::public_transfer(
-            generis_in.split(config.fee(), ctx),
+            in.split(config.fee(), ctx),
             config.receiver(),
         );
 
         transfer::public_transfer(
-            generis_in,
+            in,
             ctx.sender(),
         );
 

@@ -43,7 +43,7 @@ module generis_dao::dao_tests {
             assert_eq(config.fee(), DEFAULT_PRE_PROPOSAL_FEES);
             assert_eq(config.receiver(), @dao_treasury);
             assert_eq(
-                config.min_generis_to_create_proposal(),
+                config.min_in_to_create_proposal(),
                 DEFAULT_PRE_PROPOSAL_MIN,
             );
 
@@ -64,7 +64,7 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(1_100_000_000_000, ctx(test)),
+                mint_for_testing<GENERIS>(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
@@ -366,7 +366,7 @@ module generis_dao::dao_tests {
             assert_eq(config.fee(), DEFAULT_PRE_PROPOSAL_FEES);
             assert_eq(config.receiver(), @dao_treasury);
             assert_eq(
-                config.min_generis_to_create_proposal(),
+                config.min_in_to_create_proposal(),
                 DEFAULT_PRE_PROPOSAL_MIN,
             );
 
@@ -399,7 +399,7 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(1_100_000_000_000, ctx(test)),
+                mint_for_testing<GENERIS>(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
@@ -452,7 +452,7 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(1_100_000_000_000, ctx(test)),
+                mint_for_testing<GENERIS>(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
@@ -938,7 +938,7 @@ module generis_dao::dao_tests {
 
     #[test]
     #[lint_allow(share_owned)]
-    #[expected_failure(abort_code = dao::ENotEnoughGenerisToCreateProposal)]
+    #[expected_failure(abort_code = dao::ENotEnoughInToCreateProposal)]
     fun test_not_enough_generis_to_create_proposal() {
         let mut scenario = scenario();
         let (alice, _) = people();
@@ -960,7 +960,7 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(0, ctx(test)),
+                mint_for_testing<GENERIS>(0, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
@@ -976,7 +976,7 @@ module generis_dao::dao_tests {
 
     #[test]
     #[lint_allow(share_owned)]
-    #[expected_failure(abort_code = dao::EUserShouldHaveMoreThanMinimumGeneris)]
+    #[expected_failure(abort_code = dao::EUserShouldHaveMoreThanMinimumIn)]
     fun test_user_should_have_more_than_minimum_generis() {
         let mut scenario = scenario();
         let (alice, _) = people();
@@ -998,7 +998,45 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(100_000_000_001, ctx(test)),
+                mint_for_testing<GENERIS>(100_000_000_001, ctx(test)),
+                string::utf8(b"test"),
+                string::utf8(b"this is a test"),
+                vote_types,
+                ctx(test),
+            );
+
+            test::return_shared(config);
+            test::return_shared(registry);
+        };
+
+        test::end(scenario);
+    }
+
+    #[test]
+    #[lint_allow(share_owned)]
+    #[expected_failure(abort_code = dao::EInvalidPaymentType)]
+    fun test_user_should_pay_with_correct_type() {
+        let mut scenario = scenario();
+        let (alice, _) = people();
+
+        let test = &mut scenario;
+
+        set_up(test);
+
+        next_tx(test, alice);
+        {
+            let config = test::take_shared<ProposalConfig>(test);
+            let mut registry = test::take_shared<ProposalRegistry>(test);
+
+            let mut vote_types = vector::empty();
+
+            vote_types.push_back(string::utf8(b"yes"));
+            vote_types.push_back(string::utf8(b"no"));
+
+            dao::create_pre_proposal(
+                &config,
+                &mut registry,
+                mint_for_testing<S_ETH>(100_000_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
@@ -1035,7 +1073,7 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(1_100_000_000_000, ctx(test)),
+                mint_for_testing<GENERIS>(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
@@ -1071,7 +1109,7 @@ module generis_dao::dao_tests {
             dao::create_pre_proposal(
                 &config,
                 &mut registry,
-                mint_for_testing(1_100_000_000_000, ctx(test)),
+                mint_for_testing<GENERIS>(1_100_000_000_000, ctx(test)),
                 string::utf8(b"test"),
                 string::utf8(b"this is a test"),
                 vote_types,
