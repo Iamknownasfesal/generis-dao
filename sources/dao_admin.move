@@ -8,7 +8,7 @@ module generis_dao::dao_admin {
         transfer::public_transfer(DaoOwner { id: object::new(ctx) }, receiver)
     }
 
-    public fun new_dao_admin(ctx: &mut TxContext): DaoAdmin {
+    public(package) fun new_dao_admin(ctx: &mut TxContext): DaoAdmin {
         DaoAdmin { id: object::new(ctx) }
     }
 
