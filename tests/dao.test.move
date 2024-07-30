@@ -40,7 +40,7 @@ module generis_dao::dao_tests {
             let config = test::take_shared<ProposalConfig>(test);
 
             assert_eq(config.fee(), DEFAULT_PRE_PROPOSAL_FEES);
-            assert_eq(config.receiver(), @dao);
+            assert_eq(config.receiver(), @dao_treasury);
             assert_eq(config.min_generis_to_create_proposal(), DEFAULT_PRE_PROPOSAL_MIN);
 
             test::return_shared(config);
@@ -85,12 +85,12 @@ module generis_dao::dao_tests {
         next_tx(test, alice);
         {
             let config = test::take_shared<ProposalConfig>(test);
-            let payment = test::take_from_address<Coin<GENERIS>>(test, @dao);
+            let payment = test::take_from_address<Coin<GENERIS>>(test, @dao_treasury);
 
             assert_eq(payment.value(), DEFAULT_PRE_PROPOSAL_FEES);
 
             test::return_shared(config);
-            test::return_to_address(@dao, payment);
+            test::return_to_address(@dao_treasury, payment);
         };
 
         // Approve the pre-proposal and check that the proposal is created correctly
@@ -305,7 +305,7 @@ module generis_dao::dao_tests {
             let config = test::take_shared<ProposalConfig>(test);
 
             assert_eq(config.fee(), DEFAULT_PRE_PROPOSAL_FEES);
-            assert_eq(config.receiver(), @dao);
+            assert_eq(config.receiver(), @dao_treasury);
             assert_eq(config.min_generis_to_create_proposal(), DEFAULT_PRE_PROPOSAL_MIN);
 
             test::return_shared(config);

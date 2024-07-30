@@ -86,7 +86,9 @@ module generis_dao::dao {
         let publisher = package::claim(otw, ctx);
         transfer::public_share_object(proposal_registry::new(ctx));
 
-        dao_admin::new(ctx, @dao_treasury);
+        let sender = ctx.sender();
+        dao_admin::new(ctx, sender);
+        dao_admin::new_dao_admin(ctx, sender);
 
         let mut display = display::new<PreProposal>(&publisher, ctx);
         display.add(utf8(b"name"), utf8(b"Sui Generis Pre-Proposal: {name}"));
