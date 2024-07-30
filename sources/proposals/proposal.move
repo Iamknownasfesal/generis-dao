@@ -74,6 +74,7 @@ module generis_dao::proposal {
             config.publisher(),
             ctx,
         );
+
         display.add(utf8(b"name"), utf8(b"Sui Generis Proposal: {name}"));
         display.add(
             utf8(b"image_url"),

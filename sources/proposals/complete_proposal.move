@@ -1,12 +1,5 @@
 module generis_dao::completed_proposal {
-    use generis_dao::{
-        config::ProposalConfig,
-        display_wrapper,
-        pre_proposal::PreProposal,
-        vote_type::VoteType
-    };
-    use std::string::utf8;
-    use sui::display;
+    use generis_dao::{pre_proposal::PreProposal, vote_type::VoteType};
 
     // === Structs ===
 
@@ -30,7 +23,6 @@ module generis_dao::completed_proposal {
 
     #[allow(lint(share_owned))]
     public(package) fun new(
-        config: &ProposalConfig,
         number: u64,
         pre_proposal: PreProposal,
         ended_at: u64,
@@ -48,23 +40,6 @@ module generis_dao::completed_proposal {
             accepted_by,
             total_vote_value,
         };
-
-        let mut display = display::new<CompletedProposal>(
-            config.publisher(),
-            ctx,
-        );
-        display.add(utf8(b"name"), utf8(b"Sui Generis Proposal: {name}"));
-        display.add(
-            utf8(b"image_url"),
-            utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
-        );
-        display.add(
-            utf8(b"index"),
-            utf8(b"{number}"),
-        );
-        display.update_version();
-
-        transfer::public_share_object(display_wrapper::new(display, ctx));
 
         proposal
     }

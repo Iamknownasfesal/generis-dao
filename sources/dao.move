@@ -4,6 +4,7 @@ module generis_dao::dao {
         completed_proposal::{Self, CompletedProposal},
         config::{Self, ProposalConfig},
         dao_admin::{Self, DaoAdmin},
+        display_wrapper,
         pre_proposal::{Self, PreProposal},
         proposal::{Self, Proposal},
         proposal_registry::{Self, ProposalRegistry},
@@ -96,7 +97,7 @@ module generis_dao::dao {
         );
         display.update_version();
 
-        transfer::public_transfer(display, ctx.sender());
+        transfer::public_share_object(display_wrapper::new(display, ctx));
 
         let mut display = display::new<CompletedProposal>(&publisher, ctx);
         display.add(
@@ -112,7 +113,7 @@ module generis_dao::dao {
             utf8(b"{number}"),
         );
 
-        transfer::public_transfer(display, ctx.sender());
+        transfer::public_share_object(display_wrapper::new(display, ctx));
 
         transfer::public_share_object(
             config::new(
@@ -315,7 +316,6 @@ module generis_dao::dao {
         _: &DaoAdmin,
         clock: &Clock,
         registry: &mut ProposalRegistry,
-        config: &ProposalConfig,
         proposal: Proposal<RewardCoin, VoteCoin>,
         ctx: &mut TxContext,
     ) {
@@ -363,7 +363,6 @@ module generis_dao::dao {
             .remove(approved_vote_type);
 
         let completed_proposal = completed_proposal::new(
-            config,
             number,
             pre_proposal,
             clock.timestamp_ms(),
