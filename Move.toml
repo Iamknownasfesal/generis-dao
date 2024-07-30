@@ -7,7 +7,7 @@ authors = ["Fesal (@iamknownasfesal)"]
 [dependencies]
 MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "framework/mainnet" }
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/mainnet" }
-GenerisCoin = { local = "../generis-coin" }
+GenerisCoin = { git = "https://github.com/Iamknownasfesal/generis-coin", rev = "main" }
 
 # For remote import, use the `{ git = "...", subdir = "...", rev = "..." }`.
 # Revision can be a branch, a tag, and a commit hash.
