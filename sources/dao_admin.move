@@ -4,19 +4,23 @@ module generis_dao::dao_admin {
 
     // === Public-Mutative Functions ===
 
-    public(package) fun new(ctx: &mut TxContext, receiver: address) {
+    public(package) fun new(receiver: address, ctx: &mut TxContext) {
         transfer::public_transfer(DaoOwner { id: object::new(ctx) }, receiver)
     }
 
-    public(package) fun new_dao_admin(ctx: &mut TxContext, receiver: address) {
+    public(package) fun new_dao_admin(receiver: address, ctx: &mut TxContext) {
         transfer::public_transfer(DaoAdmin { id: object::new(ctx) }, receiver)
     }
 
-    public fun new_admin(_: &DaoOwner, ctx: &mut TxContext, receiver: address) {
-        new_dao_admin(ctx, receiver)
+    public entry fun new_admin(
+        _: &DaoOwner,
+        receiver: address,
+        ctx: &mut TxContext,
+    ) {
+        new_dao_admin(receiver, ctx)
     }
 
-    public fun burn(admin: DaoAdmin) {
+    public entry fun burn(admin: DaoAdmin) {
         let DaoAdmin { id } = admin;
         object::delete(id)
     }

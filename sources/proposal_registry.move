@@ -53,21 +53,15 @@ module generis_dao::proposal_registry {
 
     // === Public-View Functions ===
 
-    public fun find_completed_proposal(
-        self: &ProposalRegistry,
-        id: ID,
-    ): Option<u64> {
+    fun find_completed_proposal(self: &ProposalRegistry, id: ID): Option<u64> {
         return find_in_table_vec(&self.completed_proposals, id)
     }
 
-    public fun find_active_proposal(
-        self: &ProposalRegistry,
-        id: ID,
-    ): Option<u64> {
+    fun find_active_proposal(self: &ProposalRegistry, id: ID): Option<u64> {
         return find_in_table_vec(&self.active_proposals, id)
     }
 
-    public fun find_pre_proposal(self: &ProposalRegistry, id: ID): Option<u64> {
+    fun find_pre_proposal(self: &ProposalRegistry, id: ID): Option<u64> {
         return find_in_table_vec(&self.pre_proposals, id)
     }
 
