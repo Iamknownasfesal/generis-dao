@@ -1,10 +1,12 @@
 module generis_dao::completed_proposal {
-    use generis_dao::pre_proposal::PreProposal;
-    use generis_dao::vote_type::VoteType;
-    use generis_dao::display_wrapper;
-    use generis_dao::config::ProposalConfig;
-    use sui::display;
+    use generis_dao::{
+        config::ProposalConfig,
+        display_wrapper,
+        pre_proposal::PreProposal,
+        vote_type::VoteType
+    };
     use std::string::utf8;
+    use sui::display;
 
     // === Structs ===
 
@@ -47,7 +49,10 @@ module generis_dao::completed_proposal {
             total_vote_value,
         };
 
-        let mut display = display::new<CompletedProposal>(config.publisher(), ctx);
+        let mut display = display::new<CompletedProposal>(
+            config.publisher(),
+            ctx,
+        );
         display.add(utf8(b"name"), utf8(b"Sui Generis Proposal: {name}"));
         display.add(
             utf8(b"image_url"),
@@ -70,7 +75,9 @@ module generis_dao::completed_proposal {
         completed_proposal.number
     }
 
-    public fun pre_proposal(completed_proposal: &CompletedProposal): &PreProposal {
+    public fun pre_proposal(
+        completed_proposal: &CompletedProposal,
+    ): &PreProposal {
         &completed_proposal.pre_proposal
     }
 
@@ -78,7 +85,9 @@ module generis_dao::completed_proposal {
         completed_proposal.ended_at
     }
 
-    public fun approved_vote_type(completed_proposal: &CompletedProposal): &VoteType {
+    public fun approved_vote_type(
+        completed_proposal: &CompletedProposal,
+    ): &VoteType {
         &completed_proposal.approved_vote_type
     }
 

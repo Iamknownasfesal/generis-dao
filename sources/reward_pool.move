@@ -1,7 +1,5 @@
 module generis_dao::reward_pool {
-    // === Imports ===
-    use sui::balance::Balance;
-    use sui::coin::{Self, Coin};
+    use sui::{balance::Balance, coin::{Self, Coin}};
 
     // === Errors ===
 

@@ -1,20 +1,18 @@
 module generis_dao::dao {
-    use generis_dao::reward_pool::RewardPool;
-    use generis_dao::dao_admin::{Self, DaoAdmin};
-    use generis_dao::config::{Self, ProposalConfig};
-    use generis_dao::pre_proposal::{Self, PreProposal};
-    use generis_dao::proposal::{Self, Proposal};
-    use generis_dao::completed_proposal::{Self, CompletedProposal};
-    use generis_dao::proposal_registry::{Self, ProposalRegistry};
-    use generis_dao::vote::{Self, Vote};
-    use generis_dao::vote_type::{VoteType};
     use generis::generis::GENERIS;
-    use sui::coin::{Self, Coin};
-    use sui::clock::Clock;
-    use sui::package;
-    use sui::display;
-    use sui::event::emit;
+    use generis_dao::{
+        completed_proposal::{Self, CompletedProposal},
+        config::{Self, ProposalConfig},
+        dao_admin::{Self, DaoAdmin},
+        pre_proposal::{Self, PreProposal},
+        proposal::{Self, Proposal},
+        proposal_registry::{Self, ProposalRegistry},
+        reward_pool::RewardPool,
+        vote::{Self, Vote},
+        vote_type::VoteType
+    };
     use std::string::{String, utf8};
+    use sui::{clock::Clock, coin::{Self, Coin}, display, event::emit, package};
 
     // === Errors ===
 
@@ -101,7 +99,10 @@ module generis_dao::dao {
         transfer::public_transfer(display, ctx.sender());
 
         let mut display = display::new<CompletedProposal>(&publisher, ctx);
-        display.add(utf8(b"name"), utf8(b"Sui Generis Completed Proposal: {name}"));
+        display.add(
+            utf8(b"name"),
+            utf8(b"Sui Generis Completed Proposal: {name}"),
+        );
         display.add(
             utf8(b"image_url"),
             utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
@@ -136,7 +137,10 @@ module generis_dao::dao {
         vote_types: vector<String>,
         ctx: &mut TxContext,
     ) {
-        assert!(generis_in.value() >= config.fee(), ENotEnoughGenerisToCreateProposal);
+        assert!(
+            generis_in.value() >= config.fee(),
+            ENotEnoughGenerisToCreateProposal,
+        );
         assert!(
             generis_in.value() >= config.min_generis_to_create_proposal(),
             EUserShouldHaveMoreThanMinimumGeneris,
@@ -268,12 +272,20 @@ module generis_dao::dao {
 
         assert!(clock.timestamp_ms() >= proposal.start_time(), ETooSoonToVote);
         assert!(clock.timestamp_ms() <= proposal.end_time(), ETooLateToVote);
-        assert!(proposal.pre_proposal().vote_types().contains(vote_type_id), EVoteTypeDoesNotExist);
+        assert!(
+            proposal.pre_proposal().vote_types().contains(vote_type_id),
+            EVoteTypeDoesNotExist,
+        );
 
         if (proposal.votes().contains(ctx.sender())) {
-            let vote: &mut Vote<VoteCoin> = proposal.mut_votes().borrow_mut(ctx.sender());
+            let vote: &mut Vote<VoteCoin> = proposal
+                .mut_votes()
+                .borrow_mut(ctx.sender());
 
-            assert!(vote.vote_type_id() == vote_type_id, ECannotVoteDifferentVoteCoinType);
+            assert!(
+                vote.vote_type_id() == vote_type_id,
+                ECannotVoteDifferentVoteCoinType,
+            );
 
             vote.mut_balance().join(vote_coin.into_balance());
         } else {
@@ -309,7 +321,10 @@ module generis_dao::dao {
     ) {
         let proposal_id = object::id(&proposal);
         registry.remove_active_proposal(proposal_id);
-        assert!(clock.timestamp_ms() >= proposal.end_time(), EProposalCannotBeCompletedYet);
+        assert!(
+            clock.timestamp_ms() >= proposal.end_time(),
+            EProposalCannotBeCompletedYet,
+        );
 
         let mut max_vote_value = 0;
         let mut approved_vote_type: Option<ID> = option::none();
@@ -343,7 +358,9 @@ module generis_dao::dao {
         ) = proposal.destroy();
 
         let mut pre_proposal = pre_proposal;
-        let approved_vote_type: VoteType = pre_proposal.mut_vote_types().remove(approved_vote_type);
+        let approved_vote_type: VoteType = pre_proposal
+            .mut_vote_types()
+            .remove(approved_vote_type);
 
         let completed_proposal = completed_proposal::new(
             config,
@@ -372,7 +389,10 @@ module generis_dao::dao {
         proposal: &mut Proposal<RewardCoin, VoteCoin>,
         end_time: u64,
     ) {
-        assert!(end_time > proposal.end_time(), ECannotExtendProposalWithSmallerEndTime);
+        assert!(
+            end_time > proposal.end_time(),
+            ECannotExtendProposalWithSmallerEndTime,
+        );
         proposal.extend_time(end_time);
     }
 
@@ -382,7 +402,9 @@ module generis_dao::dao {
         proposal: &mut Proposal<RewardCoin, VoteCoin>,
         ctx: &mut TxContext,
     ) {
-        let reward_pool: RewardPool<RewardCoin> = proposal.mut_reward_pool().extract();
+        let reward_pool: RewardPool<RewardCoin> = proposal
+            .mut_reward_pool()
+            .extract();
         let total_vote_value = proposal.total_vote_value() as u128;
         let total_reward = reward_pool.value() as u128;
         let mut reward_coins = reward_pool.destroy(ctx);
@@ -398,7 +420,10 @@ module generis_dao::dao {
                 addr,
             );
 
-            transfer::public_transfer(coin::from_balance(vote_balance, ctx), addr);
+            transfer::public_transfer(
+                coin::from_balance(vote_balance, ctx),
+                addr,
+            );
         };
 
         // This will return anways if the total_reward is not zero, so if any math error happens, the reward will saved.

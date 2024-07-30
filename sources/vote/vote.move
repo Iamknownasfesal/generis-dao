@@ -24,7 +24,9 @@ module generis_dao::vote {
         Vote { id: object::new(ctx), balance, proposal_id, vote_type_id }
     }
 
-    public fun destroy<VoteCoin>(vote: Vote<VoteCoin>): (Balance<VoteCoin>, ID, ID) {
+    public fun destroy<VoteCoin>(
+        vote: Vote<VoteCoin>,
+    ): (Balance<VoteCoin>, ID, ID) {
         let Vote { id, balance, proposal_id, vote_type_id } = vote;
 
         object::delete(id);
@@ -32,7 +34,9 @@ module generis_dao::vote {
         (balance, proposal_id, vote_type_id)
     }
 
-    public fun mut_balance<VoteCoin>(vote: &mut Vote<VoteCoin>): &mut Balance<VoteCoin> {
+    public fun mut_balance<VoteCoin>(
+        vote: &mut Vote<VoteCoin>,
+    ): &mut Balance<VoteCoin> {
         &mut vote.balance
     }
 

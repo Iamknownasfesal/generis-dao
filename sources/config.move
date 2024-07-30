@@ -60,7 +60,8 @@ module generis_dao::config {
         proposal_config: &mut ProposalConfig,
         min_generis_to_create_proposal: u64,
     ) {
-        proposal_config.min_generis_to_create_proposal = min_generis_to_create_proposal;
+        proposal_config.min_generis_to_create_proposal =
+            min_generis_to_create_proposal;
     }
 
     // === Public-View Functions ===
@@ -73,7 +74,9 @@ module generis_dao::config {
         proposal_config.receiver
     }
 
-    public fun min_generis_to_create_proposal(proposal_config: &ProposalConfig): u64 {
+    public fun min_generis_to_create_proposal(
+        proposal_config: &ProposalConfig,
+    ): u64 {
         proposal_config.min_generis_to_create_proposal
     }
 
@@ -81,7 +84,9 @@ module generis_dao::config {
         proposal_config.proposal_index
     }
 
-    public(package) fun publisher(proposal_config: &ProposalConfig): &Publisher {
+    public(package) fun publisher(
+        proposal_config: &ProposalConfig,
+    ): &Publisher {
         &proposal_config.publisher
     }
 }

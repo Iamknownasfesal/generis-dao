@@ -1,18 +1,20 @@
 module generis_dao::proposal {
-    use generis_dao::reward_pool::{Self, RewardPool};
-    use generis_dao::pre_proposal::{PreProposal};
-    use generis_dao::vote::Vote;
-    use generis_dao::config::ProposalConfig;
-    use generis_dao::display_wrapper;
-    use sui::display;
-    use sui::linked_table::{Self, LinkedTable};
-    use sui::coin::Coin;
-    use std::string::utf8;
-    use std::type_name::{Self, TypeName};
+    use generis_dao::{
+        config::ProposalConfig,
+        display_wrapper,
+        pre_proposal::PreProposal,
+        reward_pool::{Self, RewardPool},
+        vote::Vote
+    };
+    use std::{string::utf8, type_name::{Self, TypeName}};
+    use sui::{coin::Coin, display, linked_table::{Self, LinkedTable}};
 
     // === Structs ===
 
-    public struct Proposal<phantom RewardCoin, phantom VoteCoin> has key, store {
+    public struct Proposal<
+        phantom RewardCoin,
+        phantom VoteCoin,
+    > has key, store {
         id: UID,
         /// Proposal number
         number: u64,
@@ -68,7 +70,10 @@ module generis_dao::proposal {
             vote_coin_type: type_name::get<VoteCoin>(),
         };
 
-        let mut display = display::new<Proposal<RewardCoin, VoteCoin>>(config.publisher(), ctx);
+        let mut display = display::new<Proposal<RewardCoin, VoteCoin>>(
+            config.publisher(),
+            ctx,
+        );
         display.add(utf8(b"name"), utf8(b"Sui Generis Proposal: {name}"));
         display.add(
             utf8(b"image_url"),
@@ -167,11 +172,15 @@ module generis_dao::proposal {
         &proposal.pre_proposal
     }
 
-    public fun start_time<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): u64 {
+    public fun start_time<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): u64 {
         proposal.start_time
     }
 
-    public fun end_time<RewardCoin, VoteCoin>(proposal: &Proposal<RewardCoin, VoteCoin>): u64 {
+    public fun end_time<RewardCoin, VoteCoin>(
+        proposal: &Proposal<RewardCoin, VoteCoin>,
+    ): u64 {
         proposal.end_time
     }
 
