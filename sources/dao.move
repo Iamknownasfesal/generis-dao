@@ -98,6 +98,10 @@ fun init(otw: DAO, ctx: &mut TxContext) {
     let mut display = display::new<PreProposal>(&publisher, ctx);
     display.add(utf8(b"name"), utf8(b"Sui Generis Pre-Proposal | {name}"));
     display.add(
+        utf8(b"description"),
+        utf8(b"{description}"),
+    );
+    display.add(
         utf8(b"image_url"),
         utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
     );
@@ -108,7 +112,11 @@ fun init(otw: DAO, ctx: &mut TxContext) {
     let mut display = display::new<CompletedProposal>(&publisher, ctx);
     display.add(
         utf8(b"name"),
-        utf8(b"Sui Generis Completed Proposal #{number}"),
+        utf8(b"Sui Generis Completed Proposal | {name}"),
+    );
+    display.add(
+        utf8(b"description"),
+        utf8(b"{description}"),
     );
     display.add(
         utf8(b"image_url"),

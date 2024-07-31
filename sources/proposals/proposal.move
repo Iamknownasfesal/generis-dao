@@ -4,7 +4,7 @@ use generis_dao::display_wrapper;
 use generis_dao::pre_proposal::PreProposal;
 use generis_dao::reward_pool::{Self, RewardPool};
 use generis_dao::vote::Vote;
-use std::string::utf8;
+use std::string::{utf8, String};
 use std::type_name::{Self, TypeName};
 use sui::coin::Coin;
 use sui::display;
@@ -16,6 +16,10 @@ public struct Proposal<phantom RewardCoin, phantom VoteCoin> has key, store {
     id: UID,
     /// Proposal number
     number: u64,
+    /// Name of the proposal
+    name: String,
+    /// Description of the proposal
+    description: String,
     /// Proposal accepted by
     accepted_by: address,
     /// The {PreProposal} that the {Proposal} is based on.
@@ -57,6 +61,8 @@ public(package) fun new<RewardCoin, VoteCoin>(
     let proposal = Proposal<RewardCoin, VoteCoin> {
         id: object::new(ctx),
         number: config.proposal_index(),
+        name: pre_proposal.name(),
+        description: pre_proposal.description(),
         accepted_by: ctx.sender(),
         pre_proposal,
         reward_pool,
@@ -73,7 +79,11 @@ public(package) fun new<RewardCoin, VoteCoin>(
         ctx,
     );
 
-    display.add(utf8(b"name"), utf8(b"Sui Generis Proposal #{number}"));
+    display.add(utf8(b"name"), utf8(b"Sui Generis Proposal | {name}"));
+    display.add(
+        utf8(b"description"),
+        utf8(b"{description}"),
+    );
     display.add(
         utf8(b"image_url"),
         utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
@@ -119,12 +129,9 @@ public(package) fun destroy<RewardCoin, VoteCoin>(
         pre_proposal,
         accepted_by,
         reward_pool,
-        start_time: _,
-        end_time: _,
         votes,
         total_vote_value,
-        reward_coin_type: _,
-        vote_coin_type: _,
+        ..,
     } = proposal;
 
     object::delete(id);
