@@ -1,60 +1,60 @@
-module generis_dao::vote {
-    use sui::balance::Balance;
+module generis_dao::vote;
 
-    // === Structs ===
+use sui::balance::Balance;
 
-    public struct Vote<phantom VoteCoin> has key, store {
-        id: UID,
-        /// The amount of Generis the user has used to vote for the {Proposal}.
-        balance: Balance<VoteCoin>,
-        /// The `sui::object::ID` of the {Proposal}.
-        proposal_id: ID,
-        /// The `sui::object::ID` of the {VoteType}.
-        vote_type_id: ID,
-    }
+// === Structs ===
 
-    // === Public-Mutative Functions ===
+public struct Vote<phantom VoteCoin> has key, store {
+    id: UID,
+    /// The amount of Generis the user has used to vote for the {Proposal}.
+    balance: Balance<VoteCoin>,
+    /// The `sui::object::ID` of the {Proposal}.
+    proposal_id: ID,
+    /// The `sui::object::ID` of the {VoteType}.
+    vote_type_id: ID,
+}
 
-    public(package) fun new<VoteCoin>(
-        balance: Balance<VoteCoin>,
-        proposal_id: ID,
-        vote_type_id: ID,
-        ctx: &mut TxContext,
-    ): Vote<VoteCoin> {
-        Vote { id: object::new(ctx), balance, proposal_id, vote_type_id }
-    }
+// === Public-Mutative Functions ===
 
-    public fun destroy<VoteCoin>(
-        vote: Vote<VoteCoin>,
-    ): (Balance<VoteCoin>, ID, ID) {
-        let Vote { id, balance, proposal_id, vote_type_id } = vote;
+public(package) fun new<VoteCoin>(
+    balance: Balance<VoteCoin>,
+    proposal_id: ID,
+    vote_type_id: ID,
+    ctx: &mut TxContext,
+): Vote<VoteCoin> {
+    Vote { id: object::new(ctx), balance, proposal_id, vote_type_id }
+}
 
-        object::delete(id);
+public fun destroy<VoteCoin>(
+    vote: Vote<VoteCoin>,
+): (Balance<VoteCoin>, ID, ID) {
+    let Vote { id, balance, proposal_id, vote_type_id } = vote;
 
-        (balance, proposal_id, vote_type_id)
-    }
+    object::delete(id);
 
-    public fun mut_balance<VoteCoin>(
-        vote: &mut Vote<VoteCoin>,
-    ): &mut Balance<VoteCoin> {
-        &mut vote.balance
-    }
+    (balance, proposal_id, vote_type_id)
+}
 
-    // === Public-View Functions ===
+public fun mut_balance<VoteCoin>(
+    vote: &mut Vote<VoteCoin>,
+): &mut Balance<VoteCoin> {
+    &mut vote.balance
+}
 
-    public fun value<VoteCoin>(vote: &Vote<VoteCoin>): u64 {
-        vote.balance.value()
-    }
+// === Public-View Functions ===
 
-    public fun proposal_id<VoteCoin>(vote: &Vote<VoteCoin>): ID {
-        vote.proposal_id
-    }
+public fun value<VoteCoin>(vote: &Vote<VoteCoin>): u64 {
+    vote.balance.value()
+}
 
-    public fun vote_type_id<VoteCoin>(vote: &Vote<VoteCoin>): ID {
-        vote.vote_type_id
-    }
+public fun proposal_id<VoteCoin>(vote: &Vote<VoteCoin>): ID {
+    vote.proposal_id
+}
 
-    public fun balance<VoteCoin>(vote: &Vote<VoteCoin>): &Balance<VoteCoin> {
-        &vote.balance
-    }
+public fun vote_type_id<VoteCoin>(vote: &Vote<VoteCoin>): ID {
+    vote.vote_type_id
+}
+
+public fun balance<VoteCoin>(vote: &Vote<VoteCoin>): &Balance<VoteCoin> {
+    &vote.balance
 }

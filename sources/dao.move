@@ -71,6 +71,11 @@ public struct PreProposalCreated has copy, drop {
     description: String,
 }
 
+public struct PreProposalRejected has copy, drop {
+    rejected_by: address,
+    pre_proposal_id: ID,
+}
+
 public struct ProposalCreated has copy, drop {
     proposal_id: ID,
     accepted_by: address,
@@ -277,6 +282,23 @@ public entry fun approve_pre_proposal<RewardCoin, VoteCoin>(
     registry.add_active_proposal(proposal_id);
 }
 
+public entry fun reject_pre_proposal(
+    _: &DaoAdmin,
+    registry: &mut ProposalRegistry,
+    pre_proposal: PreProposal,
+    ctx: &mut TxContext,
+) {
+    registry.remove_pre_proposal(object::id(&pre_proposal));
+    let pre_proposal_id = object::id(&pre_proposal);
+
+    pre_proposal.destruct();
+
+    emit(PreProposalRejected {
+        rejected_by: ctx.sender(),
+        pre_proposal_id,
+    });
+}
+
 public fun vote<RewardCoin, VoteCoin>(
     proposal: &mut Proposal<RewardCoin, VoteCoin>,
     clock: &Clock,
@@ -342,8 +364,9 @@ public entry fun complete<RewardCoin, VoteCoin>(
         EProposalCannotBeCompletedYet,
     );
 
-    let mut max_vote_value = 0;
     let mut approved_vote_type: Option<ID> = option::none();
+
+    let mut max_vote_value = 0;
     let vote_types = proposal.pre_proposal().vote_types();
     let mut id = vote_types.back();
 

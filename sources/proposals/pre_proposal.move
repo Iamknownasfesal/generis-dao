@@ -75,6 +75,23 @@ public(package) fun destruct_and_new(
     }
 }
 
+public(package) fun destruct(pre_proposal: PreProposal) {
+    let PreProposal {
+        id,
+        mut vote_types,
+        ..,
+    } = pre_proposal;
+
+    while (vote_types.length() > 0) {
+        let (_, vote_type) = vote_types.pop_back();
+        vote_type.destruct();
+    };
+
+    vote_types.destroy_empty();
+
+    object::delete(id);
+}
+
 public(package) fun mut_vote_types(
     pre_proposal: &mut PreProposal,
 ): &mut LinkedTable<ID, VoteType> {
