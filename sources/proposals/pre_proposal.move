@@ -1,4 +1,5 @@
 module generis_dao::pre_proposal;
+
 use generis_dao::vote_type::{Self, VoteType};
 use std::string::String;
 use sui::linked_table::{Self, LinkedTable};

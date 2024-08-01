@@ -1,22 +1,20 @@
 module generis_dao::dao;
+
 use generis::generis::GENERIS;
-use generis_dao::completed_proposal::{Self, CompletedProposal};
-use generis_dao::config::{Self, ProposalConfig};
-use generis_dao::dao_admin::{Self, DaoAdmin};
-use generis_dao::display_wrapper;
-use generis_dao::pre_proposal::{Self, PreProposal};
-use generis_dao::proposal::{Self, Proposal};
-use generis_dao::proposal_registry::{Self, ProposalRegistry};
-use generis_dao::reward_pool::RewardPool;
-use generis_dao::vote::{Self, Vote};
-use generis_dao::vote_type::VoteType;
-use std::string::{String, utf8};
-use std::type_name;
-use sui::clock::Clock;
-use sui::coin::{Self, Coin};
-use sui::display;
-use sui::event::emit;
-use sui::package;
+use generis_dao::{
+    completed_proposal::{Self, CompletedProposal},
+    config::{Self, ProposalConfig},
+    dao_admin::{Self, DaoAdmin},
+    display_wrapper,
+    pre_proposal::{Self, PreProposal},
+    proposal::{Self, Proposal},
+    proposal_registry::{Self, ProposalRegistry},
+    reward_pool::RewardPool,
+    vote::{Self, Vote},
+    vote_type::VoteType
+};
+use std::{string::{String, utf8}, type_name};
+use sui::{clock::Clock, coin::{Self, Coin}, display, event::emit, package};
 
 // === Errors ===
 

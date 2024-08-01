@@ -1,14 +1,14 @@
 module generis_dao::proposal;
-use generis_dao::config::ProposalConfig;
-use generis_dao::display_wrapper;
-use generis_dao::pre_proposal::PreProposal;
-use generis_dao::reward_pool::{Self, RewardPool};
-use generis_dao::vote::Vote;
-use std::string::{utf8, String};
-use std::type_name::{Self, TypeName};
-use sui::coin::Coin;
-use sui::display;
-use sui::linked_table::{Self, LinkedTable};
+
+use generis_dao::{
+    config::ProposalConfig,
+    display_wrapper,
+    pre_proposal::PreProposal,
+    reward_pool::{Self, RewardPool},
+    vote::Vote
+};
+use std::{string::{utf8, String}, type_name::{Self, TypeName}};
+use sui::{coin::Coin, display, linked_table::{Self, LinkedTable}};
 
 // === Structs ===
 

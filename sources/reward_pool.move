@@ -1,32 +1,32 @@
-module generis_dao::reward_pool {
-    use sui::{balance::Balance, coin::{Self, Coin}};
+module generis_dao::reward_pool;
 
-    // === Structs ===
+use sui::{balance::Balance, coin::{Self, Coin}};
 
-    /// A reward pool is a store of a specific token that is used to reward users for their contributions to the DAO.
-    public struct RewardPool<phantom T> has store, key {
-        id: UID,
-        /// The balance of the reward pool.
-        balance: Balance<T>,
-    }
+// === Structs ===
 
-    // === Public-Mutative Functions ===
+/// A reward pool is a store of a specific token that is used to reward users for their contributions to the DAO.
+public struct RewardPool<phantom T> has store, key {
+    id: UID,
+    /// The balance of the reward pool.
+    balance: Balance<T>,
+}
 
-    public fun new<T>(in: Coin<T>, ctx: &mut TxContext): RewardPool<T> {
-        RewardPool { id: object::new(ctx), balance: in.into_balance() }
-    }
+// === Public-Mutative Functions ===
 
-    public fun destroy<T>(pool: RewardPool<T>, ctx: &mut TxContext): Coin<T> {
-        let RewardPool { id, balance } = pool;
+public fun new<T>(in: Coin<T>, ctx: &mut TxContext): RewardPool<T> {
+    RewardPool { id: object::new(ctx), balance: in.into_balance() }
+}
 
-        object::delete(id);
+public fun destroy<T>(pool: RewardPool<T>, ctx: &mut TxContext): Coin<T> {
+    let RewardPool { id, balance } = pool;
 
-        coin::from_balance(balance, ctx)
-    }
+    object::delete(id);
 
-    // === Public-View Functions ===
+    coin::from_balance(balance, ctx)
+}
 
-    public fun value<T>(pool: &RewardPool<T>): u64 {
-        pool.balance.value()
-    }
+// === Public-View Functions ===
+
+public fun value<T>(pool: &RewardPool<T>): u64 {
+    pool.balance.value()
 }

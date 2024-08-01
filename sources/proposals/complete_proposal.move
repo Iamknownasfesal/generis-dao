@@ -1,6 +1,6 @@
 module generis_dao::completed_proposal;
-use generis_dao::pre_proposal::PreProposal;
-use generis_dao::vote_type::VoteType;
+
+use generis_dao::{pre_proposal::PreProposal, vote_type::VoteType};
 use std::string::String;
 
 // === Structs ===
