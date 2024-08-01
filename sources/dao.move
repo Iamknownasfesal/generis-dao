@@ -53,8 +53,8 @@ const EAtLeastTwoVoteTypesAreRequired: u64 = 12;
 
 // === Constants ===
 
-const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
-const DEFAULT_PRE_PROPOSAL_MIN: u64 = 1_000_000_000_000;
+const DEFAULT_PRE_PROPOSAL_FEES: u64 = 0; //100_000_000_000;
+const DEFAULT_PRE_PROPOSAL_MIN: u64 = 0; //1_000_000_000_000;
 
 // === Structs ===
 

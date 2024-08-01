@@ -60,7 +60,7 @@ public entry fun set_dao_receiver(
     proposal_config.receiver = receiver;
 }
 
-public entry fun set_min_generis_to_create_proposal(
+public entry fun set_min_in_to_create_proposal(
     _: &DaoAdmin,
     proposal_config: &mut ProposalConfig,
     min_in_to_create_proposal: u64,
