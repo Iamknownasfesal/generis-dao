@@ -364,9 +364,8 @@ public entry fun complete<RewardCoin, VoteCoin>(
         EProposalCannotBeCompletedYet,
     );
 
-    let mut approved_vote_type: Option<ID> = option::none();
-
     let mut max_vote_value = 0;
+    let mut approved_vote_type: Option<ID> = option::none();
     let vote_types = proposal.pre_proposal().vote_types();
     let mut id = vote_types.back();
 
@@ -385,7 +384,10 @@ public entry fun complete<RewardCoin, VoteCoin>(
 
     let approved_vote_type = approved_vote_type.extract();
     let mut proposal = proposal;
-    share_incentive_pool_rewards(&mut proposal, ctx);
+
+    if (proposal.reward_pool().is_some()) {
+        share_incentive_pool_rewards(&mut proposal, ctx);
+    };
 
     let (
         number,

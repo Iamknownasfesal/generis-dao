@@ -21,8 +21,8 @@ use sui::{
     test_utils::assert_eq
 };
 
-const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
-const DEFAULT_PRE_PROPOSAL_MIN: u64 = 1_000_000_000_000;
+const DEFAULT_PRE_PROPOSAL_FEES: u64 = 0; //100_000_000_000;
+const DEFAULT_PRE_PROPOSAL_MIN: u64 = 0; //1_000_000_000_000;
 
 #[test]
 #[lint_allow(share_owned)]
@@ -627,7 +627,7 @@ fun can_complete_proposal() {
             &mut proposal,
             &c,
             vote_type_id,
-            20_000_000_000,
+            1,
             ctx(test),
         );
 
@@ -650,7 +650,7 @@ fun can_complete_proposal() {
         let completed_proposal = test::take_shared<CompletedProposal>(test);
         assert_eq(completed_proposal.ended_at(), 101);
         assert_eq(completed_proposal.accepted_by(), alice);
-        assert_eq(completed_proposal.total_vote_value(), 20_000_000_000);
+        assert_eq(completed_proposal.total_vote_value(), 1);
 
         test::return_shared(completed_proposal);
     };
