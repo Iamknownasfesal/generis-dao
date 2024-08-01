@@ -350,7 +350,7 @@ public fun vote<RewardCoin, VoteCoin>(
 }
 
 #[lint_allow(share_owned)]
-public entry fun complete<RewardCoin, VoteCoin>(
+public entry fun complete_proposal<RewardCoin, VoteCoin>(
     _: &DaoAdmin,
     clock: &Clock,
     registry: &mut ProposalRegistry,
@@ -387,6 +387,8 @@ public entry fun complete<RewardCoin, VoteCoin>(
 
     if (proposal.reward_pool().is_some()) {
         share_incentive_pool_rewards(&mut proposal, ctx);
+    } else {
+        share_vote_value_back(&mut proposal, ctx);
     };
 
     let (
@@ -469,6 +471,21 @@ fun share_incentive_pool_rewards<RewardCoin, VoteCoin>(
     // This will return anways if the total_reward is not zero, so if any math error happens, the reward will saved.
     assert!(reward_coins.value() == 0, ECannotDeleteProposalWithRewards);
     reward_coins.destroy_zero();
+}
+
+fun share_vote_value_back<RewardCoin, VoteCoin>(
+    proposal: &mut Proposal<RewardCoin, VoteCoin>,
+    ctx: &mut TxContext,
+) {
+    while (proposal.votes().length() > 0) {
+        let (addr, vote) = proposal.mut_votes().pop_front();
+        let (vote_balance, _, _) = vote.destroy();
+
+        transfer::public_transfer(
+            coin::from_balance(vote_balance, ctx),
+            addr,
+        );
+    };
 }
 
 // === Test Functions ===
