@@ -54,6 +54,44 @@ public fun remove_pre_proposal(self: &mut ProposalRegistry, id: ID) {
 
 // === Public-View Functions ===
 
+public fun get_completed_proposals(self: &ProposalRegistry): vector<ID> {
+    let mut i = 0;
+    let mut proposals = vector::empty();
+
+    while (i < self.completed_proposals.length()) {
+        proposals.push_back(*self.completed_proposals.borrow(i));
+        i = i + 1;
+    };
+
+    proposals
+}
+
+public fun get_active_proposals(self: &ProposalRegistry): vector<ID> {
+    let mut i = 0;
+    let mut proposals = vector::empty();
+
+    while (i < self.active_proposals.length()) {
+        proposals.push_back(*self.active_proposals.borrow(i));
+        i = i + 1;
+    };
+
+    proposals
+}
+
+public fun get_pre_proposals(self: &ProposalRegistry): vector<ID> {
+    let mut i = 0;
+    let mut proposals = vector::empty();
+
+    while (i < self.pre_proposals.length()) {
+        proposals.push_back(*self.pre_proposals.borrow(i));
+        i = i + 1;
+    };
+
+    proposals
+}
+
+// === Private-View Functions ===
+
 fun find_completed_proposal(self: &ProposalRegistry, id: ID): Option<u64> {
     return find_in_table_vec(&self.completed_proposals, id)
 }

@@ -147,6 +147,7 @@ fun initiates_correctly() {
     // Vote on the proposal and check that the vote is registered correctly
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
@@ -164,6 +165,7 @@ fun initiates_correctly() {
 
         let vote_id = dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             vote_type_id,
             vote_coin,
@@ -181,6 +183,7 @@ fun initiates_correctly() {
         assert_eq(vote.vote_type_id(), vote_type_id);
         assert_eq(vote.balance().value(), 20_000_000_000);
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     // Okay vote 90% with different vote types, votes and addresses
@@ -200,12 +203,14 @@ fun initiates_correctly() {
 
     next_tx(test, bob);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
 
         vote_easy(
             &mut proposal,
+            &config,
             &c,
             vote_types_no,
             20_000_000_000,
@@ -213,6 +218,7 @@ fun initiates_correctly() {
         );
         vote_easy(
             &mut proposal,
+            &config,
             &c,
             vote_types_no,
             10_000_000_000,
@@ -220,16 +226,19 @@ fun initiates_correctly() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     next_tx(test, charlie);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
 
         vote_easy(
             &mut proposal,
+            &config,
             &c,
             vote_types_no,
             20_000_000_000,
@@ -237,6 +246,7 @@ fun initiates_correctly() {
         );
         vote_easy(
             &mut proposal,
+            &config,
             &c,
             vote_types_no,
             20_000_000_000,
@@ -244,16 +254,19 @@ fun initiates_correctly() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     next_tx(test, dave);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
 
         vote_easy(
             &mut proposal,
+            &config,
             &c,
             vote_types_yes,
             10_000_000_000,
@@ -261,6 +274,7 @@ fun initiates_correctly() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     // Let's complete now
@@ -571,6 +585,7 @@ fun can_vote() {
 
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
@@ -584,6 +599,7 @@ fun can_vote() {
 
         dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             vote_type_id,
             vote_coin,
@@ -592,6 +608,7 @@ fun can_vote() {
 
         assert_eq(proposal.total_vote_value(), 20_000_000_000);
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     clock::destroy_for_testing(c);
@@ -611,6 +628,7 @@ fun can_complete_proposal() {
 
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut registry = test::take_shared<ProposalRegistry>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
@@ -625,6 +643,7 @@ fun can_complete_proposal() {
 
         vote_easy(
             &mut proposal,
+            &config,
             &c,
             vote_type_id,
             1,
@@ -642,6 +661,7 @@ fun can_complete_proposal() {
         );
 
         test::return_shared(registry);
+        test::return_shared(config);
         test::return_to_sender(test, admin);
     };
 
@@ -671,6 +691,7 @@ fun test_cannot_vote_with_zero_coin_value() {
 
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
@@ -681,6 +702,7 @@ fun test_cannot_vote_with_zero_coin_value() {
 
         dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             vote_type_id,
             vote_coin,
@@ -688,6 +710,7 @@ fun test_cannot_vote_with_zero_coin_value() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     clock::destroy_for_testing(c);
@@ -708,6 +731,7 @@ fun test_too_late_to_vote() {
 
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
@@ -721,6 +745,7 @@ fun test_too_late_to_vote() {
 
         dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             vote_type_id,
             vote_coin,
@@ -728,6 +753,7 @@ fun test_too_late_to_vote() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     clock::destroy_for_testing(c);
@@ -748,6 +774,7 @@ fun test_too_soon_to_vote() {
 
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
@@ -761,6 +788,7 @@ fun test_too_soon_to_vote() {
 
         dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             vote_type_id,
             vote_coin,
@@ -768,6 +796,7 @@ fun test_too_soon_to_vote() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     clock::destroy_for_testing(c);
@@ -788,6 +817,7 @@ fun test_vote_with_non_existent_vote_coin_type() {
 
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
@@ -798,6 +828,7 @@ fun test_vote_with_non_existent_vote_coin_type() {
 
         dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             object::id(&c),
             vote_coin,
@@ -805,6 +836,7 @@ fun test_vote_with_non_existent_vote_coin_type() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     clock::destroy_for_testing(c);
@@ -825,6 +857,7 @@ fun test_vote_with_different_vote_coin_type() {
 
     next_tx(test, alice);
     {
+        let config = test::take_shared<ProposalConfig>(test);
         let mut proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(
             test,
         );
@@ -838,6 +871,7 @@ fun test_vote_with_different_vote_coin_type() {
 
         dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             vote_type_id,
             vote_coin,
@@ -850,6 +884,7 @@ fun test_vote_with_different_vote_coin_type() {
 
         dao::vote<S_ETH, GENERIS>(
             &mut proposal,
+            &config,
             &c,
             vote_type_id_2,
             vote_coin,
@@ -857,6 +892,7 @@ fun test_vote_with_different_vote_coin_type() {
         );
 
         test::return_shared(proposal);
+        test::return_shared(config);
     };
 
     clock::destroy_for_testing(c);
@@ -1141,6 +1177,7 @@ fun setup_with_approved_proposal(test: &mut Scenario): Clock {
 
 fun vote_easy(
     proposal: &mut Proposal<S_ETH, GENERIS>,
+    config: &ProposalConfig,
     c: &Clock,
     vote_type_id: ID,
     amount: u64,
@@ -1148,7 +1185,14 @@ fun vote_easy(
 ) {
     let vote_coin = mint_for_testing<GENERIS>(amount, ctx);
 
-    dao::vote<S_ETH, GENERIS>(proposal, c, vote_type_id, vote_coin, ctx);
+    dao::vote<S_ETH, GENERIS>(
+        proposal,
+        config,
+        c,
+        vote_type_id,
+        vote_coin,
+        ctx,
+    );
 }
 
 #[lint_allow(share_owned)]

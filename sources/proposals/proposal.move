@@ -5,7 +5,8 @@ use generis_dao::{
     display_wrapper,
     pre_proposal::PreProposal,
     reward_pool::{Self, RewardPool},
-    vote::Vote
+    vote::Vote,
+    vote_type::VoteTypeClone
 };
 use std::{string::{utf8, String}, type_name::{Self, TypeName}};
 use sui::{coin::Coin, display, linked_table::{Self, LinkedTable}};
@@ -214,8 +215,30 @@ public fun votes<RewardCoin, VoteCoin>(
     &proposal.votes
 }
 
+public fun vec_vote_ids<RewardCoin, VoteCoin>(
+    proposal: &Proposal<RewardCoin, VoteCoin>,
+): vector<ID> {
+    let mut vec_vote_ids = vector::empty<ID>();
+    let mut id = proposal.votes.back();
+
+    while (id.is_some()) {
+        let vote: &Vote<VoteCoin> = proposal.votes.borrow(*id.borrow());
+        vec_vote_ids.push_back(object::id(vote));
+
+        id = proposal.votes.prev(*id.borrow());
+    };
+
+    vec_vote_ids
+}
+
 public fun reward_pool<RewardCoin, VoteCoin>(
     proposal: &Proposal<RewardCoin, VoteCoin>,
 ): &Option<RewardPool<RewardCoin>> {
     &proposal.reward_pool
+}
+
+public fun vec_vote_types<RewardCoin, VoteCoin>(
+    proposal: &Proposal<RewardCoin, VoteCoin>,
+): vector<VoteTypeClone> {
+    proposal.pre_proposal().vec_vote_types()
 }

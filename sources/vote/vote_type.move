@@ -14,6 +14,16 @@ public struct VoteType has key, store {
     total_vote_value: u64,
 }
 
+public struct VoteTypeClone has copy, drop {
+    id: ID,
+    /// The name of the {VoteType}.
+    name: String,
+    /// The `sui::object::ID` of the {Proposal}.
+    proposal_id: ID,
+    /// Total vote value
+    total_vote_value: u64,
+}
+
 // === Public-Mutative Functions ===
 
 public(package) fun new(
@@ -23,6 +33,15 @@ public(package) fun new(
     ctx: &mut TxContext,
 ): VoteType {
     VoteType { id: object::new(ctx), name, proposal_id, total_vote_value }
+}
+
+public(package) fun new_from_vote_type(vote_type: &VoteType): VoteTypeClone {
+    VoteTypeClone {
+        id: object::id(vote_type),
+        name: vote_type.name,
+        proposal_id: vote_type.proposal_id,
+        total_vote_value: vote_type.total_vote_value,
+    }
 }
 
 public(package) fun destruct(vote_type: VoteType) {

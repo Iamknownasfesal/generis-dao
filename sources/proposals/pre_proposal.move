@@ -1,6 +1,6 @@
 module generis_dao::pre_proposal;
 
-use generis_dao::vote_type::{Self, VoteType};
+use generis_dao::vote_type::{Self, VoteType, VoteTypeClone};
 use std::string::String;
 use sui::linked_table::{Self, LinkedTable};
 
@@ -114,4 +114,18 @@ public fun description(pre_proposal: &PreProposal): String {
 
 public fun vote_types(pre_proposal: &PreProposal): &LinkedTable<ID, VoteType> {
     &pre_proposal.vote_types
+}
+
+public fun vec_vote_types(pre_proposal: &PreProposal): vector<VoteTypeClone> {
+    let mut vec_vote_types = vector::empty<VoteTypeClone>();
+    let mut id = pre_proposal.vote_types.back();
+
+    while (id.is_some()) {
+        let vote_type: &VoteType = pre_proposal.vote_types.borrow(*id.borrow());
+
+        vec_vote_types.push_back(vote_type::new_from_vote_type(vote_type));
+        id = pre_proposal.vote_types.prev(*id.borrow());
+    };
+
+    vec_vote_types
 }

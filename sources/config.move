@@ -12,6 +12,8 @@ public struct ProposalConfig has key, store {
     receiver: address,
     /// Minimum amount of Generis that a user needs to pay to create a {PreProposal}
     min_in_to_create_proposal: u64,
+    /// Minimum vote value
+    min_vote_value: u64,
     /// The amount of proposals got created
     proposal_index: u64,
     /// Publisher object for adding display
@@ -26,6 +28,7 @@ public(package) fun new<PaymentCoin>(
     fee: u64,
     receiver: address,
     min_in_to_create_proposal: u64,
+    min_vote_value: u64,
     publisher: Publisher,
     ctx: &mut TxContext,
 ): ProposalConfig {
@@ -34,6 +37,7 @@ public(package) fun new<PaymentCoin>(
         fee,
         receiver,
         min_in_to_create_proposal,
+        min_vote_value,
         proposal_index: 1,
         publisher,
         payment_type: type_name::get<PaymentCoin>(),
@@ -75,6 +79,14 @@ public entry fun set_payment_type<PaymentCoin>(
     proposal_config.payment_type = type_name::get<PaymentCoin>();
 }
 
+public entry fun set_min_vote_value(
+    _: &DaoAdmin,
+    proposal_config: &mut ProposalConfig,
+    min_vote_value: u64,
+) {
+    proposal_config.min_vote_value = min_vote_value;
+}
+
 // === Public-View Functions ===
 
 public fun fee(proposal_config: &ProposalConfig): u64 {
@@ -95,6 +107,10 @@ public fun proposal_index(proposal_config: &ProposalConfig): u64 {
 
 public fun payment_type(proposal_config: &ProposalConfig): TypeName {
     proposal_config.payment_type
+}
+
+public fun min_vote_value(proposal_config: &ProposalConfig): u64 {
+    proposal_config.min_vote_value
 }
 
 public(package) fun publisher(proposal_config: &ProposalConfig): &Publisher {

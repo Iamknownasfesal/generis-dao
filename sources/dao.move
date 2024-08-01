@@ -51,10 +51,15 @@ const EVoteTypeDoesNotExist: u64 = 11;
 /// At least two vote types are required.
 const EAtLeastTwoVoteTypesAreRequired: u64 = 12;
 
+/// Vote Config Errors
+/// The user cannot vote without having minimum Generis.
+const EUserShouldHaveMinimumGenerisToVote: u64 = 13;
+
 // === Constants ===
 
 const DEFAULT_PRE_PROPOSAL_FEES: u64 = 0; //100_000_000_000;
 const DEFAULT_PRE_PROPOSAL_MIN: u64 = 0; //1_000_000_000_000;
+const DEFAULT_MIN_VOTE_VALUE: u64 = 0; //1_000_000_000;
 
 // === Structs ===
 
@@ -137,6 +142,7 @@ fun init(otw: DAO, ctx: &mut TxContext) {
             DEFAULT_PRE_PROPOSAL_FEES,
             @dao_treasury,
             DEFAULT_PRE_PROPOSAL_MIN,
+            DEFAULT_MIN_VOTE_VALUE,
             publisher,
             ctx,
         ),
@@ -301,6 +307,7 @@ public entry fun reject_pre_proposal(
 
 public fun vote<RewardCoin, VoteCoin>(
     proposal: &mut Proposal<RewardCoin, VoteCoin>,
+    config: &ProposalConfig,
     clock: &Clock,
     vote_type_id: ID,
     vote_coin: Coin<VoteCoin>,
@@ -308,7 +315,10 @@ public fun vote<RewardCoin, VoteCoin>(
 ): ID {
     let value = vote_coin.value();
     assert!(value > 0, ECannotVoteWithZeroCoinValue);
-
+    assert!(
+        value >= config.min_vote_value(),
+        EUserShouldHaveMinimumGenerisToVote,
+    );
     assert!(clock.timestamp_ms() >= proposal.start_time(), ETooSoonToVote);
     assert!(clock.timestamp_ms() <= proposal.end_time(), ETooLateToVote);
     assert!(

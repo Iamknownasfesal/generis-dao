@@ -1,6 +1,9 @@
 module generis_dao::completed_proposal;
 
-use generis_dao::{pre_proposal::PreProposal, vote_type::VoteType};
+use generis_dao::{
+    pre_proposal::PreProposal,
+    vote_type::{VoteType, VoteTypeClone}
+};
 use std::string::String;
 
 // === Structs ===
@@ -78,4 +81,10 @@ public fun accepted_by(completed_proposal: &CompletedProposal): address {
 
 public fun total_vote_value(completed_proposal: &CompletedProposal): u64 {
     completed_proposal.total_vote_value
+}
+
+public fun vec_vote_types(
+    completed_proposal: &CompletedProposal,
+): vector<VoteTypeClone> {
+    completed_proposal.pre_proposal().vec_vote_types()
 }
