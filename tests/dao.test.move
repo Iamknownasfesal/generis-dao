@@ -273,7 +273,7 @@ fun initiates_correctly() {
         let admin = test::take_from_sender<DaoAdmin>(test);
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
-        dao::complete<S_ETH, GENERIS>(
+        dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
@@ -633,7 +633,7 @@ fun can_complete_proposal() {
 
         clock::increment_for_testing(&mut c, 2);
 
-        dao::complete<S_ETH, GENERIS>(
+        dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
@@ -879,7 +879,7 @@ fun test_complete_proposal_too_early() {
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
 
-        dao::complete<S_ETH, GENERIS>(
+        dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
@@ -913,7 +913,7 @@ fun test_vote_with_none_vote_type() {
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
 
-        dao::complete<S_ETH, GENERIS>(
+        dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
