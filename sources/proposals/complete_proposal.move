@@ -18,6 +18,8 @@ public struct CompletedProposal has key, store {
     description: String,
     /// The {PreProposal} that the {Proposal} is based on.
     pre_proposal: PreProposal,
+    /// Started time of the proposal
+    started_at: u64,
     /// End time of the proposal
     ended_at: u64,
     /// Approved {VoteType}
@@ -34,6 +36,7 @@ public struct CompletedProposal has key, store {
 public(package) fun new(
     number: u64,
     pre_proposal: PreProposal,
+    started_at: u64,
     ended_at: u64,
     approved_vote_type: VoteType,
     accepted_by: address,
@@ -46,6 +49,7 @@ public(package) fun new(
         name: pre_proposal.name(),
         description: pre_proposal.description(),
         pre_proposal,
+        started_at,
         ended_at,
         approved_vote_type,
         accepted_by,

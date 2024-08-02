@@ -123,6 +123,7 @@ public(package) fun destroy<RewardCoin, VoteCoin>(
     Option<RewardPool<RewardCoin>>,
     LinkedTable<address, Vote<VoteCoin>>,
     u64,
+    u64,
 ) {
     let Proposal {
         id,
@@ -132,6 +133,7 @@ public(package) fun destroy<RewardCoin, VoteCoin>(
         reward_pool,
         votes,
         total_vote_value,
+        start_time,
         ..,
     } = proposal;
 
@@ -144,6 +146,7 @@ public(package) fun destroy<RewardCoin, VoteCoin>(
         reward_pool,
         votes,
         total_vote_value,
+        start_time,
     )
 }
 

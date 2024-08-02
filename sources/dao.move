@@ -408,6 +408,7 @@ public entry fun complete_proposal<RewardCoin, VoteCoin>(
         reward_pool,
         votes,
         total_vote_value,
+        start_time,
     ) = proposal.destroy();
 
     let mut pre_proposal = pre_proposal;
@@ -418,6 +419,7 @@ public entry fun complete_proposal<RewardCoin, VoteCoin>(
     let completed_proposal = completed_proposal::new(
         number,
         pre_proposal,
+        start_time,
         clock.timestamp_ms(),
         approved_vote_type,
         accepted_by,
