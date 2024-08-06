@@ -5,7 +5,7 @@ use generis::generis::GENERIS;
 use generis_dao::{
     completed_proposal::CompletedProposal,
     config::ProposalConfig,
-    dao,
+    dao::{Self, ExecutingProposal},
     dao_admin::DaoAdmin,
     pre_proposal::PreProposal,
     proposal::Proposal,
@@ -21,8 +21,8 @@ use sui::{
     test_utils::assert_eq
 };
 
-const DEFAULT_PRE_PROPOSAL_FEES: u64 = 0; //100_000_000_000;
-const DEFAULT_PRE_PROPOSAL_MIN: u64 = 0; //1_000_000_000_000;
+const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
+const DEFAULT_PRE_PROPOSAL_MIN: u64 = 1_000_000_000_000;
 
 #[test]
 #[lint_allow(share_owned)]
@@ -287,11 +287,17 @@ fun initiates_correctly() {
         let admin = test::take_from_sender<DaoAdmin>(test);
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
-        dao::complete_proposal<S_ETH, GENERIS>(
+        let executing_proposal = dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
             proposal,
+            ctx(test),
+        );
+
+        get_over_votes_easy(
+            &admin,
+            executing_proposal,
             ctx(test),
         );
 
@@ -646,17 +652,23 @@ fun can_complete_proposal() {
             &config,
             &c,
             vote_type_id,
-            1,
+            1_000_000_000,
             ctx(test),
         );
 
         clock::increment_for_testing(&mut c, 2);
 
-        dao::complete_proposal<S_ETH, GENERIS>(
+        let executing_proposal = dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
             proposal,
+            ctx(test),
+        );
+
+        get_over_votes_easy(
+            &admin,
+            executing_proposal,
             ctx(test),
         );
 
@@ -670,7 +682,7 @@ fun can_complete_proposal() {
         let completed_proposal = test::take_shared<CompletedProposal>(test);
         assert_eq(completed_proposal.ended_at(), 101);
         assert_eq(completed_proposal.accepted_by(), alice);
-        assert_eq(completed_proposal.total_vote_value(), 1);
+        assert_eq(completed_proposal.total_vote_value(), 1_000_000_000);
 
         test::return_shared(completed_proposal);
     };
@@ -915,11 +927,17 @@ fun test_complete_proposal_too_early() {
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
 
-        dao::complete_proposal<S_ETH, GENERIS>(
+        let executing_proposal = dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
             proposal,
+            ctx(test),
+        );
+
+        get_over_votes_easy(
+            &admin,
+            executing_proposal,
             ctx(test),
         );
 
@@ -949,11 +967,17 @@ fun test_vote_with_none_vote_type() {
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
 
-        dao::complete_proposal<S_ETH, GENERIS>(
+        let executing_proposal = dao::complete_proposal<S_ETH, GENERIS>(
             &admin,
             &c,
             &mut registry,
             proposal,
+            ctx(test),
+        );
+
+        get_over_votes_easy(
+            &admin,
+            executing_proposal,
             ctx(test),
         );
 
@@ -1193,6 +1217,33 @@ fun vote_easy(
         vote_coin,
         ctx,
     );
+}
+
+// This function uses dao::go_over_votes
+fun get_over_votes_easy<RewardCoin, VoteCoin>(
+    dao_admin: &DaoAdmin,
+    proposal: ExecutingProposal<RewardCoin, VoteCoin>,
+    ctx: &mut TxContext,
+) {
+    let mut currentLength = proposal.linked_table_length();
+    let mut proposal = proposal;
+
+    while (currentLength > 0) {
+        let go_over_times = if (currentLength > 400) { 400 } else {
+            currentLength
+        };
+
+        dao::go_over_votes(
+            dao_admin,
+            &mut proposal,
+            go_over_times,
+            ctx,
+        );
+
+        currentLength = currentLength - go_over_times;
+    };
+
+    dao::finish_go_over_votes(dao_admin, proposal, ctx)
 }
 
 #[lint_allow(share_owned)]

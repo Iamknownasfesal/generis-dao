@@ -13,8 +13,15 @@ use generis_dao::{
     vote::{Self, Vote},
     vote_type::VoteType
 };
-use std::{string::{String, utf8}, type_name};
-use sui::{clock::Clock, coin::{Self, Coin}, display, event::emit, package};
+use std::{string::{String, utf8}, type_name::{Self, TypeName}};
+use sui::{
+    clock::Clock,
+    coin::{Self, Coin},
+    display,
+    event::emit,
+    linked_table::LinkedTable,
+    package
+};
 
 // === Errors ===
 
@@ -40,28 +47,37 @@ const ENotEnoughInToCreateProposal: u64 = 6;
 const EUserShouldHaveMoreThanMinimumIn: u64 = 7;
 /// The proposal cannot yet be completed.
 const EProposalCannotBeCompletedYet: u64 = 8;
-/// There is still rewards in the reward pool.
-const ECannotDeleteProposalWithRewards: u64 = 9;
 /// Cannot extend the proposal with an `end_time` smaller than the current `end_time`.
-const ECannotExtendProposalWithSmallerEndTime: u64 = 10;
+const ECannotExtendProposalWithSmallerEndTime: u64 = 9;
 
 // Vote Type Errors
 /// {VoteType} does not exist.
-const EVoteTypeDoesNotExist: u64 = 11;
+const EVoteTypeDoesNotExist: u64 = 10;
 /// At least two vote types are required.
-const EAtLeastTwoVoteTypesAreRequired: u64 = 12;
+const EAtLeastTwoVoteTypesAreRequired: u64 = 11;
 
 /// Vote Config Errors
 /// The user cannot vote without having minimum Generis.
-const EUserShouldHaveMinimumGenerisToVote: u64 = 13;
+const EUserShouldHaveMinimumGenerisToVote: u64 = 12;
 
 // === Constants ===
 
-const DEFAULT_PRE_PROPOSAL_FEES: u64 = 0; //100_000_000_000;
-const DEFAULT_PRE_PROPOSAL_MIN: u64 = 0; //1_000_000_000_000;
-const DEFAULT_MIN_VOTE_VALUE: u64 = 0; //1_000_000_000;
+const DEFAULT_PRE_PROPOSAL_FEES: u64 = 100_000_000_000;
+const DEFAULT_PRE_PROPOSAL_MIN: u64 = 1_000_000_000_000;
+const DEFAULT_MIN_VOTE_VALUE: u64 = 1_000_000_000;
 
 // === Structs ===
+
+public struct ExecutingProposal<
+    phantom RewardCoin,
+    phantom VoteCoin,
+> has store, key {
+    id: UID,
+    linked_table: LinkedTable<address, Vote<VoteCoin>>,
+    rewards: Option<RewardPool<RewardCoin>>,
+    total_vote_value: u64,
+    total_reward: Option<u64>,
+}
 
 /// == OTW ==
 
@@ -85,11 +101,27 @@ public struct ProposalCreated has copy, drop {
     proposal_id: ID,
     accepted_by: address,
     pre_proposal_id: ID,
+    index: u64,
+}
+
+public struct VoteEvent has copy, drop {
+    proposal_id: ID,
+    voter: address,
+    vote_type_id: ID,
+    vote_value: u64,
 }
 
 public struct ProposalCompleted has copy, drop {
     proposal_id: ID,
     completed_proposal_id: ID,
+    index: u64,
+}
+
+public struct ExecutingProposalCreated has copy, drop {
+    executing_proposal_id: ID,
+    votes_length: u64,
+    reward_type_name: TypeName,
+    vote_type_name: TypeName,
 }
 
 // === Init ===
@@ -134,6 +166,7 @@ fun init(otw: DAO, ctx: &mut TxContext) {
         utf8(b"index"),
         utf8(b"{number}"),
     );
+    display.update_version();
 
     transfer::public_share_object(display_wrapper::new(display, ctx));
 
@@ -246,6 +279,7 @@ public entry fun create_proposal<RewardCoin, VoteCoin>(
         proposal_id,
         accepted_by: ctx.sender(),
         pre_proposal_id: object::id(proposal.pre_proposal()),
+        index: proposal.number(),
     });
 
     config.proposal_created();
@@ -281,6 +315,7 @@ public entry fun approve_pre_proposal<RewardCoin, VoteCoin>(
         proposal_id,
         accepted_by: ctx.sender(),
         pre_proposal_id: object::id(proposal.pre_proposal()),
+        index: proposal.number(),
     });
 
     config.proposal_created();
@@ -356,17 +391,24 @@ public fun vote<RewardCoin, VoteCoin>(
         .borrow_mut(vote_type_id);
     vote_type.add_vote_value(value);
 
+    emit(VoteEvent {
+        proposal_id: object::id(proposal),
+        voter: ctx.sender(),
+        vote_type_id,
+        vote_value: value,
+    });
+
     object::id(proposal.votes().borrow(ctx.sender()))
 }
 
 #[lint_allow(share_owned)]
-public entry fun complete_proposal<RewardCoin, VoteCoin>(
+public fun complete_proposal<RewardCoin, VoteCoin>(
     _: &DaoAdmin,
     clock: &Clock,
     registry: &mut ProposalRegistry,
     proposal: Proposal<RewardCoin, VoteCoin>,
     ctx: &mut TxContext,
-) {
+): ExecutingProposal<RewardCoin, VoteCoin> {
     let proposal_id = object::id(&proposal);
     registry.remove_active_proposal(proposal_id);
     assert!(
@@ -393,13 +435,6 @@ public entry fun complete_proposal<RewardCoin, VoteCoin>(
     assert!(approved_vote_type.is_some(), EVoteTypeCannotBeNone);
 
     let approved_vote_type = approved_vote_type.extract();
-    let mut proposal = proposal;
-
-    if (proposal.reward_pool().is_some()) {
-        share_incentive_pool_rewards(&mut proposal, ctx);
-    } else {
-        share_vote_value_back(&mut proposal, ctx);
-    };
 
     let (
         number,
@@ -431,11 +466,110 @@ public entry fun complete_proposal<RewardCoin, VoteCoin>(
 
     registry.add_completed_proposal(completed_proposal_id);
 
-    emit(ProposalCompleted { proposal_id, completed_proposal_id });
+    emit(ProposalCompleted {
+        proposal_id,
+        completed_proposal_id,
+        index: number,
+    });
 
     transfer::public_share_object(completed_proposal);
-    votes.destroy_empty();
-    reward_pool.destroy_none();
+
+    let total_reward = if (reward_pool.is_some()) {
+        option::some(reward_pool.borrow().value())
+    } else {
+        option::none()
+    };
+
+    let executing_proposal = ExecutingProposal {
+        id: object::new(ctx),
+        linked_table: votes,
+        rewards: reward_pool,
+        total_vote_value,
+        total_reward,
+    };
+
+    emit(ExecutingProposalCreated {
+        executing_proposal_id: object::id(&executing_proposal),
+        votes_length: executing_proposal.linked_table.length(),
+        reward_type_name: type_name::get<RewardCoin>(),
+        vote_type_name: type_name::get<VoteCoin>(),
+    });
+
+    executing_proposal
+}
+
+public fun go_over_votes<RewardCoin, VoteCoin>(
+    _: &DaoAdmin,
+    executing_proposal: &mut ExecutingProposal<RewardCoin, VoteCoin>,
+    go_over_times: u64,
+    ctx: &mut TxContext,
+) {
+    let linked_table = &mut executing_proposal.linked_table;
+    let total_vote_value = executing_proposal.total_vote_value;
+    let total_reward = &mut executing_proposal.total_reward;
+    let rewards = &mut executing_proposal.rewards;
+
+    let reward_pool_available = rewards.is_some();
+    let mut count = 0;
+
+    while (linked_table.length() > 0) {
+        let (addr, vote) = linked_table.pop_front();
+        let (vote_balance, _, _) = vote.destroy();
+        let vote_value = vote_balance.value();
+
+        if (reward_pool_available) {
+            transfer::public_transfer(
+                rewards
+                    .borrow_mut()
+                    .split(
+                        (
+                            (
+                                (*total_reward.borrow_mut() as u128) * (
+                                    vote_value as u128,
+                                ),
+                            ) / (total_vote_value as u128),
+                        ) as u64,
+                        ctx,
+                    ),
+                addr,
+            );
+        };
+
+        transfer::public_transfer(
+            coin::from_balance(vote_balance, ctx),
+            addr,
+        );
+
+        count = count + 1;
+
+        if (count >= go_over_times) {
+            break
+        };
+    };
+}
+
+public fun finish_go_over_votes<RewardCoin, VoteCoin>(
+    _: &DaoAdmin,
+    executing_proposal: ExecutingProposal<RewardCoin, VoteCoin>,
+    ctx: &mut TxContext,
+) {
+    let ExecutingProposal {
+        id,
+        linked_table,
+        rewards,
+        ..,
+    } = executing_proposal;
+
+    object::delete(id);
+    linked_table.destroy_empty();
+
+    let mut rewards = rewards;
+
+    if (rewards.is_some()) {
+        rewards.extract().destroy(ctx).destroy_zero();
+    };
+
+    rewards.destroy_none();
 }
 
 public entry fun extend_proposal<RewardCoin, VoteCoin>(
@@ -450,57 +584,37 @@ public entry fun extend_proposal<RewardCoin, VoteCoin>(
     proposal.extend_time(end_time);
 }
 
-// === Private Functions ===
+// === Public-View Functions for ExecutingProposal ===
 
-fun share_incentive_pool_rewards<RewardCoin, VoteCoin>(
-    proposal: &mut Proposal<RewardCoin, VoteCoin>,
-    ctx: &mut TxContext,
-) {
-    let reward_pool: RewardPool<RewardCoin> = proposal
-        .mut_reward_pool()
-        .extract();
-    let total_vote_value = proposal.total_vote_value() as u128;
-    let total_reward = reward_pool.value() as u128;
-    let mut reward_coins = reward_pool.destroy(ctx);
-
-    while (proposal.votes().length() > 0) {
-        let (addr, vote) = proposal.mut_votes().pop_front();
-        let (vote_balance, _, _) = vote.destroy();
-        let vote_value = vote_balance.value() as u128;
-        let reward = (total_reward * vote_value) / total_vote_value;
-
-        transfer::public_transfer(
-            reward_coins.split(reward as u64, ctx),
-            addr,
-        );
-
-        transfer::public_transfer(
-            coin::from_balance(vote_balance, ctx),
-            addr,
-        );
-    };
-
-    // This will return anways if the total_reward is not zero, so if any math error happens, the reward will saved.
-    assert!(reward_coins.value() == 0, ECannotDeleteProposalWithRewards);
-    reward_coins.destroy_zero();
+public fun linked_table<RewardCoin, VoteCoin>(
+    executing_proposal: &ExecutingProposal<RewardCoin, VoteCoin>,
+): &LinkedTable<address, Vote<VoteCoin>> {
+    &executing_proposal.linked_table
 }
 
-fun share_vote_value_back<RewardCoin, VoteCoin>(
-    proposal: &mut Proposal<RewardCoin, VoteCoin>,
-    ctx: &mut TxContext,
-) {
-    while (proposal.votes().length() > 0) {
-        let (addr, vote) = proposal.mut_votes().pop_front();
-        let (vote_balance, _, _) = vote.destroy();
-
-        transfer::public_transfer(
-            coin::from_balance(vote_balance, ctx),
-            addr,
-        );
-    };
+public fun linked_table_length<RewardCoin, VoteCoin>(
+    executing_proposal: &ExecutingProposal<RewardCoin, VoteCoin>,
+): u64 {
+    executing_proposal.linked_table.length()
 }
 
-// === Test Functions ===
+public fun rewards<RewardCoin, VoteCoin>(
+    executing_proposal: &ExecutingProposal<RewardCoin, VoteCoin>,
+): &Option<RewardPool<RewardCoin>> {
+    &executing_proposal.rewards
+}
+
+public fun total_vote_value<RewardCoin, VoteCoin>(
+    executing_proposal: &ExecutingProposal<RewardCoin, VoteCoin>,
+): u64 {
+    executing_proposal.total_vote_value
+}
+
+public fun total_reward<RewardCoin, VoteCoin>(
+    executing_proposal: &ExecutingProposal<RewardCoin, VoteCoin>,
+): Option<u64> {
+    executing_proposal.total_reward
+}
 
 #[test_only]
 public fun init_for_testing(ctx: &mut TxContext) {

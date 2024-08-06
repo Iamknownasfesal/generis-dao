@@ -234,6 +234,35 @@ public fun vec_vote_ids<RewardCoin, VoteCoin>(
     vec_vote_ids
 }
 
+public fun did_user_vote_if_where<RewardCoin, VoteCoin>(
+    proposal: &Proposal<RewardCoin, VoteCoin>,
+    ctx: &mut TxContext,
+): (bool, Option<ID>) {
+    let mut id = proposal.votes.back();
+
+    while (id.is_some()) {
+        if (*id.borrow() == ctx.sender()) {
+            return (
+                true,
+                option::some(proposal
+                    .votes
+                    .borrow(*id.borrow())
+                    .vote_type_id()),
+            )
+        };
+
+        id = proposal.votes.prev(*id.borrow());
+    };
+
+    (false, option::none())
+}
+
+public fun vote_length<RewardCoin, VoteCoin>(
+    proposal: &Proposal<RewardCoin, VoteCoin>,
+): u64 {
+    proposal.votes.length()
+}
+
 public fun reward_pool<RewardCoin, VoteCoin>(
     proposal: &Proposal<RewardCoin, VoteCoin>,
 ): &Option<RewardPool<RewardCoin>> {
@@ -244,4 +273,10 @@ public fun vec_vote_types<RewardCoin, VoteCoin>(
     proposal: &Proposal<RewardCoin, VoteCoin>,
 ): vector<VoteTypeClone> {
     proposal.pre_proposal().vec_vote_types()
+}
+
+public fun number<RewardCoin, VoteCoin>(
+    proposal: &Proposal<RewardCoin, VoteCoin>,
+): u64 {
+    proposal.number
 }

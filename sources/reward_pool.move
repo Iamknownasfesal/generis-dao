@@ -25,6 +25,14 @@ public fun destroy<T>(pool: RewardPool<T>, ctx: &mut TxContext): Coin<T> {
     coin::from_balance(balance, ctx)
 }
 
+public fun split<T>(
+    pool: &mut RewardPool<T>,
+    amount: u64,
+    ctx: &mut TxContext,
+): Coin<T> {
+    pool.balance.split(amount).into_coin(ctx)
+}
+
 // === Public-View Functions ===
 
 public fun value<T>(pool: &RewardPool<T>): u64 {
