@@ -285,6 +285,7 @@ fun initiates_correctly() {
     {
         let mut registry = test::take_shared<ProposalRegistry>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
+        let config = test::take_shared<ProposalConfig>(test);
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
 
         let executing_proposal = dao::complete_proposal<S_ETH, GENERIS>(
@@ -297,11 +298,13 @@ fun initiates_correctly() {
 
         get_over_votes_easy(
             &admin,
+            &config,
             executing_proposal,
             ctx(test),
         );
 
         test::return_shared(registry);
+        test::return_shared(config);
         test::return_to_sender(test, admin);
     };
 
@@ -668,6 +671,7 @@ fun can_complete_proposal() {
 
         get_over_votes_easy(
             &admin,
+            &config,
             executing_proposal,
             ctx(test),
         );
@@ -924,6 +928,7 @@ fun test_complete_proposal_too_early() {
     next_tx(test, alice);
     {
         let mut registry = test::take_shared<ProposalRegistry>(test);
+        let config = test::take_shared<ProposalConfig>(test);
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
 
@@ -937,11 +942,13 @@ fun test_complete_proposal_too_early() {
 
         get_over_votes_easy(
             &admin,
+            &config,
             executing_proposal,
             ctx(test),
         );
 
         test::return_shared(registry);
+        test::return_shared(config);
         test::return_to_sender(test, admin);
     };
 
@@ -964,6 +971,7 @@ fun test_vote_with_none_vote_type() {
     next_tx(test, alice);
     {
         let mut registry = test::take_shared<ProposalRegistry>(test);
+        let config = test::take_shared<ProposalConfig>(test);
         let proposal = test::take_shared<Proposal<S_ETH, GENERIS>>(test);
         let admin = test::take_from_sender<DaoAdmin>(test);
 
@@ -977,11 +985,13 @@ fun test_vote_with_none_vote_type() {
 
         get_over_votes_easy(
             &admin,
+            &config,
             executing_proposal,
             ctx(test),
         );
 
         test::return_shared(registry);
+        test::return_shared(config);
         test::return_to_sender(test, admin);
     };
 
@@ -1222,6 +1232,7 @@ fun vote_easy(
 // This function uses dao::go_over_votes
 fun get_over_votes_easy<RewardCoin, VoteCoin>(
     dao_admin: &DaoAdmin,
+    config: &ProposalConfig,
     proposal: ExecutingProposal<RewardCoin, VoteCoin>,
     ctx: &mut TxContext,
 ) {
@@ -1243,7 +1254,7 @@ fun get_over_votes_easy<RewardCoin, VoteCoin>(
         currentLength = currentLength - go_over_times;
     };
 
-    dao::finish_go_over_votes(dao_admin, proposal, ctx)
+    dao::finish_go_over_votes(dao_admin, config, proposal, ctx)
 }
 
 #[lint_allow(share_owned)]

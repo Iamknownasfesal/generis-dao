@@ -143,7 +143,7 @@ fun init(otw: DAO, ctx: &mut TxContext) {
     );
     display.add(
         utf8(b"image_url"),
-        utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
+        utf8(b"https://dao.suigeneris.auction/proposal/image/{id}?type=pre"),
     );
     display.update_version();
 
@@ -160,7 +160,9 @@ fun init(otw: DAO, ctx: &mut TxContext) {
     );
     display.add(
         utf8(b"image_url"),
-        utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
+        utf8(
+            b"https://dao.suigeneris.auction/proposal/image/{id}?type=completed",
+        ),
     );
     display.add(
         utf8(b"index"),

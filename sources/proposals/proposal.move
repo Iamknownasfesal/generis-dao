@@ -87,7 +87,7 @@ public(package) fun new<RewardCoin, VoteCoin>(
     );
     display.add(
         utf8(b"image_url"),
-        utf8(b"https://dao.suigeneris.auction/proposal?id={id}"),
+        utf8(b"https://dao.suigeneris.auction/proposal/image/{id}?type=active"),
     );
     display.add(
         utf8(b"index"),
