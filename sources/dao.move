@@ -550,6 +550,7 @@ public fun go_over_votes<RewardCoin, VoteCoin>(
 
 public fun finish_go_over_votes<RewardCoin, VoteCoin>(
     _: &DaoAdmin,
+    config: &ProposalConfig,
     executing_proposal: ExecutingProposal<RewardCoin, VoteCoin>,
     ctx: &mut TxContext,
 ) {
@@ -566,7 +567,12 @@ public fun finish_go_over_votes<RewardCoin, VoteCoin>(
     let mut rewards = rewards;
 
     if (rewards.is_some()) {
-        rewards.extract().destroy(ctx).destroy_zero();
+        let reward_coin = rewards.extract().destroy(ctx);
+
+        transfer::public_transfer(
+            reward_coin,
+            config.receiver(),
+        );
     };
 
     rewards.destroy_none();

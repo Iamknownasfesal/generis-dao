@@ -25,29 +25,38 @@ public(package) fun new(ctx: &mut TxContext): ProposalRegistry {
     }
 }
 
-public fun add_completed_proposal(self: &mut ProposalRegistry, id: ID) {
+public(package) fun add_completed_proposal(
+    self: &mut ProposalRegistry,
+    id: ID,
+) {
     self.completed_proposals.push_back(id)
 }
 
-public fun add_active_proposal(self: &mut ProposalRegistry, id: ID) {
+public(package) fun add_active_proposal(self: &mut ProposalRegistry, id: ID) {
     self.active_proposals.push_back(id)
 }
 
-public fun add_pre_proposal(self: &mut ProposalRegistry, id: ID) {
+public(package) fun add_pre_proposal(self: &mut ProposalRegistry, id: ID) {
     self.pre_proposals.push_back(id)
 }
 
-public fun remove_completed_proposal(self: &mut ProposalRegistry, id: ID) {
+public(package) fun remove_completed_proposal(
+    self: &mut ProposalRegistry,
+    id: ID,
+) {
     let index = self.find_completed_proposal(id).extract();
     self.completed_proposals.swap_remove(index);
 }
 
-public fun remove_active_proposal(self: &mut ProposalRegistry, id: ID) {
+public(package) fun remove_active_proposal(
+    self: &mut ProposalRegistry,
+    id: ID,
+) {
     let index = self.find_active_proposal(id).extract();
     self.active_proposals.swap_remove(index);
 }
 
-public fun remove_pre_proposal(self: &mut ProposalRegistry, id: ID) {
+public(package) fun remove_pre_proposal(self: &mut ProposalRegistry, id: ID) {
     let index = self.find_pre_proposal(id).extract();
     self.pre_proposals.swap_remove(index);
 }
