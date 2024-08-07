@@ -24,8 +24,7 @@ GenerisCoin = { git = "https://github.com/Iamknownasfesal/generis-coin", rev = "
 generis_dao = "0x0"
 std = "0x1"
 sui = "0x2"
-dao = "0x666"
-dao_treasury = "0x222"
+dao_treasury = "0xc333120e29ae0b59f924836c2eff13a06b9009324dee51fe8aa880107c7b08be"
 
 # Named addresses will be accessible in Move as `@name`. They're also exported:
 # for example, `std = "0x1"` is exported by the Standard Library.

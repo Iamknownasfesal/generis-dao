@@ -134,6 +134,7 @@ fun init(otw: DAO, ctx: &mut TxContext) {
     let sender = ctx.sender();
     dao_admin::new(sender, ctx);
     transfer::public_transfer(dao_admin::new_dao_admin(ctx), sender);
+    transfer::public_transfer(dao_admin::new_dao_admin(ctx), @dao_treasury);
 
     let mut display = display::new<PreProposal>(&publisher, ctx);
     display.add(utf8(b"name"), utf8(b"Sui Generis Pre-Proposal | {name}"));

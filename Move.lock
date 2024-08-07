@@ -2,7 +2,7 @@
 
 [move]
 version = 2
-manifest_digest = "5F88F7FB4121ED33087B3DEBB3B99359A9C540A9033E739301E347661D7508BA"
+manifest_digest = "A75DC4D989DA0F3247D7995F3656F88FA02519C08B2909C7F8649AA03BC63F03"
 deps_digest = "060AD7E57DFB13104F21BE5F5C3759D03F0553FC3229247D9A7A6B45F50D03A3"
 dependencies = [
   { name = "GenerisCoin" },
@@ -39,6 +39,6 @@ flavor = "sui"
 
 [env.mainnet]
 chain-id = "35834a8a"
-original-published-id = "0xc14bf5c5b1657199254820558b6d803ef1a8eca4115a00a47828649d198174af"
-latest-published-id = "0xc14bf5c5b1657199254820558b6d803ef1a8eca4115a00a47828649d198174af"
+original-published-id = "0x3a0bbd2934e87113ac4ce66005aaca59455bfd5004c4f9965ecc7ee166992040"
+latest-published-id = "0x3a0bbd2934e87113ac4ce66005aaca59455bfd5004c4f9965ecc7ee166992040"
 published-version = "1"
